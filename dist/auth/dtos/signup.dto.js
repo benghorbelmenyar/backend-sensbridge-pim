@@ -15,6 +15,10 @@ class SignupDto {
     name;
     email;
     password;
+    phone;
+    userType;
+    language;
+    carteHandicape;
 }
 exports.SignupDto = SignupDto;
 __decorate([
@@ -31,4 +35,24 @@ __decorate([
     (0, class_validator_1.Matches)(/^(?=.*[0-9])/, { message: 'Password must contain at least one number' }),
     __metadata("design:type", String)
 ], SignupDto.prototype, "password", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], SignupDto.prototype, "phone", void 0);
+__decorate([
+    (0, class_validator_1.IsEnum)(['ADMIN', 'USER', 'MANAGER']),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], SignupDto.prototype, "userType", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], SignupDto.prototype, "language", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], SignupDto.prototype, "carteHandicape", void 0);
 //# sourceMappingURL=signup.dto.js.map
