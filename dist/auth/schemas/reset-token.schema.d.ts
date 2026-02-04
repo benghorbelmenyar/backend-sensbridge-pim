@@ -3,6 +3,7 @@ export declare class ResetToken extends Document {
     token: string;
     userId: mongoose.Types.ObjectId;
     expiryDate: Date;
+    otp: string;
 }
 export declare const ResetTokenSchema: mongoose.Schema<ResetToken, mongoose.Model<ResetToken, any, any, any, (mongoose.Document<unknown, any, ResetToken, any, mongoose.DefaultSchemaOptions> & ResetToken & Required<{
     _id: mongoose.Types.ObjectId;
@@ -51,6 +52,15 @@ export declare const ResetTokenSchema: mongoose.Schema<ResetToken, mongoose.Mode
         id: string;
     }> | undefined;
     expiryDate?: mongoose.SchemaDefinitionProperty<Date, ResetToken, mongoose.Document<unknown, {}, ResetToken, {
+        id: string;
+    }, mongoose.ResolveSchemaOptions<mongoose.DefaultSchemaOptions>> & Omit<ResetToken & Required<{
+        _id: mongoose.Types.ObjectId;
+    }> & {
+        __v: number;
+    }, "id"> & {
+        id: string;
+    }> | undefined;
+    otp?: mongoose.SchemaDefinitionProperty<string, ResetToken, mongoose.Document<unknown, {}, ResetToken, {
         id: string;
     }, mongoose.ResolveSchemaOptions<mongoose.DefaultSchemaOptions>> & Omit<ResetToken & Required<{
         _id: mongoose.Types.ObjectId;

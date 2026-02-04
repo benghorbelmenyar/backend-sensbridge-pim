@@ -87,9 +87,7 @@ let AuthService = class AuthService {
         console.log('Language:', language);
         console.log('Carte Handicapé:', carteHandicape);
         console.log('═══════════════════════════════════════');
-        const emailInUse = await this.UserModel.findOne({
-            email,
-        });
+        const emailInUse = await this.UserModel.findOne({ email });
         if (emailInUse) {
             throw new common_1.BadRequestException('Email already in use');
         }
@@ -156,35 +154,98 @@ let AuthService = class AuthService {
         return { message: 'Password changed successfully' };
     }
     async forgotPassword(email) {
+        console.log('═══════════════════════════════════════');
+        console.log('🔵 FORGOT PASSWORD - Email:', email);
         const user = await this.UserModel.findOne({ email });
         if (user) {
+            console.log('✅ Utilisateur trouvé:', user.name);
+            const otp = Math.floor(100000 + Math.random() * 900000).toString();
+            const resetToken = (0, nanoid_1.nanoid)(64);
             const expiryDate = new Date();
             expiryDate.setHours(expiryDate.getHours() + 1);
-            const resetToken = (0, nanoid_1.nanoid)(64);
             await this.ResetTokenModel.create({
                 token: resetToken,
                 userId: user._id,
                 expiryDate,
+                otp,
             });
-            this.mailService.sendPasswordResetEmail(email, resetToken);
+            console.log('📧 Envoi de l\'email avec OTP:', otp);
+            try {
+                await this.mailService.sendPasswordResetEmail(email, otp);
+                console.log('✅ Email envoyé avec succès');
+            }
+            catch (error) {
+                console.error('❌ Erreur envoi email:', error);
+            }
         }
-        return { message: 'If this user exists, they will receive an email' };
+        else {
+            console.log('⚠️ Utilisateur non trouvé pour:', email);
+        }
+        console.log('═══════════════════════════════════════');
+        return {
+            success: true,
+            message: 'If this user exists, they will receive an email',
+        };
+    }
+    async verifyOtp(email, otp) {
+        console.log('═══════════════════════════════════════');
+        console.log('🔵 VERIFY OTP');
+        console.log('Email:', email);
+        console.log('OTP:', otp);
+        const user = await this.UserModel.findOne({ email });
+        if (!user) {
+            console.log('❌ Utilisateur non trouvé');
+            throw new common_1.UnauthorizedException('Invalid OTP');
+        }
+        const token = await this.ResetTokenModel.findOne({
+            userId: user._id,
+            otp,
+            expiryDate: { $gte: new Date() },
+        });
+        if (!token) {
+            console.log('❌ OTP invalide ou expiré');
+            throw new common_1.UnauthorizedException('Invalid or expired OTP');
+        }
+        console.log('✅ OTP valide - Token:', token.token.substring(0, 10) + '...');
+        console.log('═══════════════════════════════════════');
+        return {
+            success: true,
+            resetToken: token.token,
+            message: 'OTP verified successfully'
+        };
     }
     async resetPassword(newPassword, resetToken) {
+        console.log('═══════════════════════════════════════');
+        console.log('🔵 RESET PASSWORD');
+        console.log('Reset token:', resetToken.substring(0, 10) + '...');
         const token = await this.ResetTokenModel.findOneAndDelete({
             token: resetToken,
             expiryDate: { $gte: new Date() },
         });
         if (!token) {
-            throw new common_1.UnauthorizedException('Invalid link');
+            console.log('❌ Token invalide ou expiré');
+            throw new common_1.UnauthorizedException('Invalid or expired reset link');
         }
         const user = await this.UserModel.findById(token.userId);
         if (!user) {
+            console.log('❌ Utilisateur non trouvé');
             throw new common_1.InternalServerErrorException();
         }
         user.password = await bcrypt.hash(newPassword, 10);
         await user.save();
-        return { message: 'Password reset successfully' };
+        console.log('✅ Mot de passe réinitialisé pour:', user.email);
+        try {
+            await this.mailService.sendPasswordResetConfirmation(user.email, user.name);
+            console.log('✅ Email de confirmation envoyé');
+        }
+        catch (error) {
+            console.error('⚠️ Erreur envoi email confirmation:', error);
+        }
+        console.log('═══════════════════════════════════════');
+        return {
+            success: true,
+            message: 'Password reset successfully'
+        };
     }
     async refreshTokens(refreshToken) {
         const token = await this.RefreshTokenModel.findOne({
@@ -212,9 +273,7 @@ let AuthService = class AuthService {
     async storeRefreshToken(token, userId) {
         const expiryDate = new Date();
         expiryDate.setDate(expiryDate.getDate() + 3);
-        await this.RefreshTokenModel.updateOne({ userId }, { $set: { expiryDate, token } }, {
-            upsert: true,
-        });
+        await this.RefreshTokenModel.updateOne({ userId }, { $set: { expiryDate, token } }, { upsert: true });
     }
     async getUserPermissions(userId) {
         const user = await this.UserModel.findById(userId);

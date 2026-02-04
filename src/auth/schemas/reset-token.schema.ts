@@ -9,6 +9,8 @@ export class ResetToken extends Document {
   userId: mongoose.Types.ObjectId;
   @Prop({ required: true })
   expiryDate: Date;
+  @Prop() // ✅ Ajouter ce champ ICI
+  otp: string;
 }
 
 export const ResetTokenSchema = SchemaFactory.createForClass(ResetToken);

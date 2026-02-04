@@ -23,6 +23,7 @@ const change_password_dto_1 = require("./dtos/change-password.dto");
 const authentication_guard_1 = require("../guards/authentication.guard");
 const forgot_password_dto_1 = require("./dtos/forgot-password.dto");
 const reset_password_dto_1 = require("./dtos/reset-password.dto");
+const verify_otp_dto_1 = require("./dtos/verify-otp.dto");
 let AuthController = class AuthController {
     authService;
     constructor(authService) {
@@ -42,6 +43,9 @@ let AuthController = class AuthController {
     }
     async forgotPassword(forgotPasswordDto) {
         return this.authService.forgotPassword(forgotPasswordDto.email);
+    }
+    async verifyOtp(verifyOtpDto) {
+        return this.authService.verifyOtp(verifyOtpDto.email, verifyOtpDto.otp);
     }
     async resetPassword(resetPasswordDto) {
         return this.authService.resetPassword(resetPasswordDto.newPassword, resetPasswordDto.resetToken);
@@ -92,13 +96,23 @@ __decorate([
 ], AuthController.prototype, "changePassword", null);
 __decorate([
     (0, common_1.Post)('forgot-password'),
-    (0, swagger_1.ApiOperation)({ summary: 'Demander la réinitialisation du mot de passe' }),
+    (0, swagger_1.ApiOperation)({ summary: 'Demander un code OTP pour réinitialiser le mot de passe' }),
     (0, swagger_1.ApiResponse)({ status: 200, description: 'Email envoyé si l\'utilisateur existe' }),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [forgot_password_dto_1.ForgotPasswordDto]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "forgotPassword", null);
+__decorate([
+    (0, common_1.Post)('verify-otp'),
+    (0, swagger_1.ApiOperation)({ summary: 'Vérifier le code OTP reçu par email' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'OTP vérifié avec succès, retourne le resetToken' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'OTP invalide ou expiré' }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [verify_otp_dto_1.VerifyOtpDto]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "verifyOtp", null);
 __decorate([
     (0, common_1.Put)('reset-password'),
     (0, swagger_1.ApiOperation)({ summary: 'Réinitialiser le mot de passe' }),

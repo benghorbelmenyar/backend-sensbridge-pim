@@ -5,6 +5,7 @@ import { RefreshTokenDto } from './dtos/refresh-tokens.dto';
 import { ChangePasswordDto } from './dtos/change-password.dto';
 import { ForgotPasswordDto } from './dtos/forgot-password.dto';
 import { ResetPasswordDto } from './dtos/reset-password.dto';
+import { VerifyOtpDto } from './dtos/verify-otp.dto';
 export declare class AuthController {
     private readonly authService;
     constructor(authService: AuthService);
@@ -41,9 +42,16 @@ export declare class AuthController {
         message: string;
     }>;
     forgotPassword(forgotPasswordDto: ForgotPasswordDto): Promise<{
+        success: boolean;
+        message: string;
+    }>;
+    verifyOtp(verifyOtpDto: VerifyOtpDto): Promise<{
+        success: boolean;
+        resetToken: string;
         message: string;
     }>;
     resetPassword(resetPasswordDto: ResetPasswordDto): Promise<{
+        success: boolean;
         message: string;
     }>;
 }

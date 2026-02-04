@@ -49,6 +49,7 @@ let ResetToken = class ResetToken extends mongoose_2.Document {
     token;
     userId;
     expiryDate;
+    otp;
 };
 exports.ResetToken = ResetToken;
 __decorate([
@@ -63,6 +64,10 @@ __decorate([
     (0, mongoose_1.Prop)({ required: true }),
     __metadata("design:type", Date)
 ], ResetToken.prototype, "expiryDate", void 0);
+__decorate([
+    (0, mongoose_1.Prop)(),
+    __metadata("design:type", String)
+], ResetToken.prototype, "otp", void 0);
 exports.ResetToken = ResetToken = __decorate([
     (0, mongoose_1.Schema)({ versionKey: false, timestamps: true })
 ], ResetToken);

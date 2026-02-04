@@ -1,3 +1,4 @@
+// src/auth/auth.service.ts
 import {
   BadRequestException,
   Injectable,
@@ -35,7 +36,6 @@ export class AuthService {
   ) {}
 
   async signup(signupData: SignupDto) {
-    // ✅ Destructurer TOUS les champs
     const { email, password, name, phone, userType, language, carteHandicape } = signupData;
 
     console.log('═══════════════════════════════════════');
@@ -48,31 +48,25 @@ export class AuthService {
     console.log('Carte Handicapé:', carteHandicape);
     console.log('═══════════════════════════════════════');
 
-    // Check if email is in use
-    const emailInUse = await this.UserModel.findOne({
-      email,
-    });
+    const emailInUse = await this.UserModel.findOne({ email });
     if (emailInUse) {
       throw new BadRequestException('Email already in use');
     }
 
-    // Hash password
     const hashedPassword = await bcrypt.hash(password, 10);
 
-    // ✅ Create user document avec TOUS les champs
     const user = await this.UserModel.create({
       name,
       email,
       password: hashedPassword,
       phone: phone || undefined,
-      userType: userType || 'USER', // Valeur par défaut
+      userType: userType || 'USER',
       language: language || undefined,
       carteHandicape: carteHandicape || undefined,
     });
 
     console.log('✅ User créé avec succès:', user._id);
 
-    // Generate tokens
     const tokens = await this.generateUserTokens(user._id);
     return {
       ...tokens,
@@ -91,19 +85,16 @@ export class AuthService {
   async login(credentials: LoginDto) {
     const { email, password } = credentials;
     
-    // Find if user exists by email
     const user = await this.UserModel.findOne({ email });
     if (!user) {
       throw new UnauthorizedException('Wrong credentials');
     }
 
-    // Compare entered password with existing password
     const passwordMatch = await bcrypt.compare(password, user.password);
     if (!passwordMatch) {
       throw new UnauthorizedException('Wrong credentials');
     }
 
-    // Generate JWT tokens
     const tokens = await this.generateUserTokens(user._id);
     return {
       ...tokens,
@@ -119,19 +110,16 @@ export class AuthService {
   }
 
   async changePassword(userId, oldPassword: string, newPassword: string) {
-    // Find the user
     const user = await this.UserModel.findById(userId);
     if (!user) {
       throw new NotFoundException('User not found...');
     }
 
-    // Compare the old password with the password in DB
     const passwordMatch = await bcrypt.compare(oldPassword, user.password);
     if (!passwordMatch) {
       throw new UnauthorizedException('Wrong credentials');
     }
 
-    // Change user's password
     const newHashedPassword = await bcrypt.hash(newPassword, 10);
     user.password = newHashedPassword;
     await user.save();
@@ -140,48 +128,120 @@ export class AuthService {
   }
 
   async forgotPassword(email: string) {
-    // Check that user exists
+    console.log('═══════════════════════════════════════');
+    console.log('🔵 FORGOT PASSWORD - Email:', email);
+    
     const user = await this.UserModel.findOne({ email });
 
     if (user) {
-      // If user exists, generate password reset link
+      console.log('✅ Utilisateur trouvé:', user.name);
+      
+      const otp = Math.floor(100000 + Math.random() * 900000).toString();
+      const resetToken = nanoid(64);
+      
       const expiryDate = new Date();
       expiryDate.setHours(expiryDate.getHours() + 1);
 
-      const resetToken = nanoid(64);
       await this.ResetTokenModel.create({
         token: resetToken,
         userId: user._id,
         expiryDate,
+        otp,
       });
-      // Send the link to the user by email
-      this.mailService.sendPasswordResetEmail(email, resetToken);
+
+      console.log('📧 Envoi de l\'email avec OTP:', otp);
+      
+      try {
+        await this.mailService.sendPasswordResetEmail(email, otp);
+        console.log('✅ Email envoyé avec succès');
+      } catch (error) {
+        console.error('❌ Erreur envoi email:', error);
+      }
+    } else {
+      console.log('⚠️ Utilisateur non trouvé pour:', email);
     }
 
-    return { message: 'If this user exists, they will receive an email' };
+    console.log('═══════════════════════════════════════');
+    
+    return { 
+      success: true,
+      message: 'If this user exists, they will receive an email',
+    };
   }
 
+  async verifyOtp(email: string, otp: string) {
+    console.log('═══════════════════════════════════════');
+    console.log('🔵 VERIFY OTP');
+    console.log('Email:', email);
+    console.log('OTP:', otp);
+    
+    const user = await this.UserModel.findOne({ email });
+    if (!user) {
+      console.log('❌ Utilisateur non trouvé');
+      throw new UnauthorizedException('Invalid OTP');
+    }
+
+    const token = await this.ResetTokenModel.findOne({
+      userId: user._id,
+      otp,
+      expiryDate: { $gte: new Date() },
+    });
+
+    if (!token) {
+      console.log('❌ OTP invalide ou expiré');
+      throw new UnauthorizedException('Invalid or expired OTP');
+    }
+
+    console.log('✅ OTP valide - Token:', token.token.substring(0, 10) + '...');
+    console.log('═══════════════════════════════════════');
+    
+    return { 
+      success: true, 
+      resetToken: token.token,
+      message: 'OTP verified successfully'
+    };
+  }
+
+  // ✅ UNE SEULE VERSION de resetPassword
   async resetPassword(newPassword: string, resetToken: string) {
-    // Find a valid reset token document
+    console.log('═══════════════════════════════════════');
+    console.log('🔵 RESET PASSWORD');
+    console.log('Reset token:', resetToken.substring(0, 10) + '...');
+    
     const token = await this.ResetTokenModel.findOneAndDelete({
       token: resetToken,
       expiryDate: { $gte: new Date() },
     });
 
     if (!token) {
-      throw new UnauthorizedException('Invalid link');
+      console.log('❌ Token invalide ou expiré');
+      throw new UnauthorizedException('Invalid or expired reset link');
     }
 
-    // Change user password (MAKE SURE TO HASH!!)
     const user = await this.UserModel.findById(token.userId);
     if (!user) {
+      console.log('❌ Utilisateur non trouvé');
       throw new InternalServerErrorException();
     }
 
     user.password = await bcrypt.hash(newPassword, 10);
     await user.save();
 
-    return { message: 'Password reset successfully' };
+    console.log('✅ Mot de passe réinitialisé pour:', user.email);
+    
+    try {
+      await this.mailService.sendPasswordResetConfirmation(user.email, user.name);
+      console.log('✅ Email de confirmation envoyé');
+    } catch (error) {
+      console.error('⚠️ Erreur envoi email confirmation:', error);
+    }
+    
+    console.log('═══════════════════════════════════════');
+
+    return { 
+      success: true,
+      message: 'Password reset successfully' 
+    };
   }
 
   async refreshTokens(refreshToken: string) {
@@ -217,16 +277,13 @@ export class AuthService {
   }
 
   async storeRefreshToken(token: string, userId: string) {
-    // Calculate expiry date 3 days from now
     const expiryDate = new Date();
     expiryDate.setDate(expiryDate.getDate() + 3);
 
     await this.RefreshTokenModel.updateOne(
       { userId },
       { $set: { expiryDate, token } },
-      {
-        upsert: true,
-      },
+      { upsert: true },
     );
   }
 
@@ -237,7 +294,6 @@ export class AuthService {
       throw new BadRequestException('Utilisateur introuvable');
     }
 
-    // ✅ Correction de l'erreur TypeScript
     if (!user.roleId) {
       throw new BadRequestException('Utilisateur sans rôle assigné');
     }
