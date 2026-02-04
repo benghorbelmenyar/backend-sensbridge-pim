@@ -77,7 +77,16 @@ let AuthService = class AuthService {
         this.rolesService = rolesService;
     }
     async signup(signupData) {
-        const { email, password, name } = signupData;
+        const { email, password, name, phone, userType, language, carteHandicape } = signupData;
+        console.log('═══════════════════════════════════════');
+        console.log('🔵 SIGNUP - Données reçues:');
+        console.log('Name:', name);
+        console.log('Email:', email);
+        console.log('Phone:', phone);
+        console.log('UserType:', userType);
+        console.log('Language:', language);
+        console.log('Carte Handicapé:', carteHandicape);
+        console.log('═══════════════════════════════════════');
         const emailInUse = await this.UserModel.findOne({
             email,
         });
@@ -89,7 +98,12 @@ let AuthService = class AuthService {
             name,
             email,
             password: hashedPassword,
+            phone: phone || undefined,
+            userType: userType || 'USER',
+            language: language || undefined,
+            carteHandicape: carteHandicape || undefined,
         });
+        console.log('✅ User créé avec succès:', user._id);
         const tokens = await this.generateUserTokens(user._id);
         return {
             ...tokens,
@@ -97,6 +111,10 @@ let AuthService = class AuthService {
                 id: user._id,
                 name: user.name,
                 email: user.email,
+                phone: user.phone,
+                userType: user.userType,
+                language: user.language,
+                carteHandicape: user.carteHandicape,
             },
         };
     }
@@ -117,6 +135,9 @@ let AuthService = class AuthService {
                 id: user._id,
                 name: user.name,
                 email: user.email,
+                phone: user.phone,
+                userType: user.userType,
+                language: user.language,
             },
         };
     }
@@ -199,6 +220,9 @@ let AuthService = class AuthService {
         const user = await this.UserModel.findById(userId);
         if (!user) {
             throw new common_1.BadRequestException('Utilisateur introuvable');
+        }
+        if (!user.roleId) {
+            throw new common_1.BadRequestException('Utilisateur sans rôle assigné');
         }
         const role = await this.rolesService.getRoleById(user.roleId.toString());
         if (!role) {

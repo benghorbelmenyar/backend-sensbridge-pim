@@ -22,6 +22,10 @@ export declare class AuthService {
             id: mongoose.Types.ObjectId;
             name: string;
             email: string;
+            phone: string | undefined;
+            userType: string | undefined;
+            language: string | undefined;
+            carteHandicape: string | undefined;
         };
         accessToken: string;
         refreshToken: string;
@@ -31,6 +35,9 @@ export declare class AuthService {
             id: mongoose.Types.ObjectId;
             name: string;
             email: string;
+            phone: string | undefined;
+            userType: string | undefined;
+            language: string | undefined;
         };
         accessToken: string;
         refreshToken: string;

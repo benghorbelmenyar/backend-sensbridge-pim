@@ -16,6 +16,10 @@ let User = class User extends mongoose_2.Document {
     name;
     email;
     password;
+    phone;
+    userType;
+    language;
+    carteHandicape;
     roleId;
 };
 exports.User = User;
@@ -32,8 +36,24 @@ __decorate([
     __metadata("design:type", String)
 ], User.prototype, "password", void 0);
 __decorate([
-    (0, mongoose_1.Prop)({ required: false, type: mongoose_2.SchemaTypes.ObjectId }),
-    __metadata("design:type", mongoose_2.Types.ObjectId)
+    (0, mongoose_1.Prop)({ required: false }),
+    __metadata("design:type", String)
+], User.prototype, "phone", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ required: false, default: 'USER' }),
+    __metadata("design:type", String)
+], User.prototype, "userType", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ required: false }),
+    __metadata("design:type", String)
+], User.prototype, "language", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ required: false }),
+    __metadata("design:type", String)
+], User.prototype, "carteHandicape", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ required: false }),
+    __metadata("design:type", String)
 ], User.prototype, "roleId", void 0);
 exports.User = User = __decorate([
     (0, mongoose_1.Schema)()
