@@ -24,6 +24,8 @@ const authentication_guard_1 = require("../guards/authentication.guard");
 const forgot_password_dto_1 = require("./dtos/forgot-password.dto");
 const reset_password_dto_1 = require("./dtos/reset-password.dto");
 const verify_otp_dto_1 = require("./dtos/verify-otp.dto");
+const google_auth_guard_1 = require("../guards/google-auth.guard");
+const google_token_dto_1 = require("./dtos/google-token.dto");
 let AuthController = class AuthController {
     authService;
     constructor(authService) {
@@ -49,6 +51,21 @@ let AuthController = class AuthController {
     }
     async resetPassword(resetPasswordDto) {
         return this.authService.resetPassword(resetPasswordDto.newPassword, resetPasswordDto.resetToken);
+    }
+    async googleAuth() {
+    }
+    async googleAuthCallback(req, res) {
+        try {
+            const tokens = await this.authService['generateTokensForUser'](req.user);
+            return res.redirect(`myapp://auth/google?accessToken=${tokens.accessToken}&refreshToken=${tokens.refreshToken}&user=${encodeURIComponent(JSON.stringify(tokens.user))}`);
+        }
+        catch (error) {
+            console.error('Error in callback:', error);
+            return res.redirect('/login?error=auth_failed');
+        }
+    }
+    async googleTokenAuth(googleTokenDto) {
+        return this.authService.googleTokenLogin(googleTokenDto.idToken);
     }
 };
 exports.AuthController = AuthController;
@@ -123,6 +140,34 @@ __decorate([
     __metadata("design:paramtypes", [reset_password_dto_1.ResetPasswordDto]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "resetPassword", null);
+__decorate([
+    (0, common_1.Get)('google'),
+    (0, common_1.UseGuards)(google_auth_guard_1.GoogleAuthGuard),
+    (0, swagger_1.ApiOperation)({ summary: 'Authentification Google (redirection)' }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "googleAuth", null);
+__decorate([
+    (0, common_1.Get)('google/callback'),
+    (0, common_1.UseGuards)(google_auth_guard_1.GoogleAuthGuard),
+    (0, swagger_1.ApiOperation)({ summary: 'Callback Google OAuth' }),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "googleAuthCallback", null);
+__decorate([
+    (0, common_1.Post)('google/token'),
+    (0, swagger_1.ApiOperation)({ summary: 'Authentification Google via Token (mobile)' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Connexion Google réussie' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Token Google invalide' }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [google_token_dto_1.GoogleTokenDto]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "googleTokenAuth", null);
 exports.AuthController = AuthController = __decorate([
     (0, swagger_1.ApiTags)('Authentication'),
     (0, common_1.Controller)('auth'),

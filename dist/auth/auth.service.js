@@ -59,6 +59,7 @@ const nanoid_1 = require("nanoid");
 const reset_token_schema_1 = require("./schemas/reset-token.schema");
 const mail_service_1 = require("../services/mail.service");
 const roles_service_1 = require("../roles/roles.service");
+const google_auth_library_1 = require("google-auth-library");
 let AuthService = class AuthService {
     UserModel;
     RefreshTokenModel;
@@ -67,6 +68,7 @@ let AuthService = class AuthService {
     configService;
     mailService;
     rolesService;
+    googleClient;
     constructor(UserModel, RefreshTokenModel, ResetTokenModel, jwtService, configService, mailService, rolesService) {
         this.UserModel = UserModel;
         this.RefreshTokenModel = RefreshTokenModel;
@@ -75,6 +77,7 @@ let AuthService = class AuthService {
         this.configService = configService;
         this.mailService = mailService;
         this.rolesService = rolesService;
+        this.googleClient = new google_auth_library_1.OAuth2Client(this.configService.get('GOOGLE_CLIENT_ID'));
     }
     async signup(signupData) {
         const { email, password, name, phone, userType, language, carteHandicape } = signupData;
@@ -288,6 +291,100 @@ let AuthService = class AuthService {
             throw new common_1.BadRequestException('Rôle introuvable');
         }
         return role.permissions;
+    }
+    async validateGoogleUser(profile) {
+        console.log('✅ Validating Google user...');
+        let user = await this.UserModel.findOne({
+            email: profile.emails[0].value
+        });
+        if (user) {
+            if (!user.googleId) {
+                user.googleId = profile.id;
+                user.profilePicture = profile.photos?.[0]?.value;
+                user.isEmailVerified = true;
+                user.authProvider = 'google';
+                await user.save();
+            }
+        }
+        else {
+            user = await this.UserModel.create({
+                googleId: profile.id,
+                name: profile.displayName,
+                email: profile.emails[0].value,
+                password: '',
+                profilePicture: profile.photos?.[0]?.value,
+                isEmailVerified: true,
+                authProvider: 'google',
+            });
+        }
+        return user;
+    }
+    async googleTokenLogin(idToken) {
+        try {
+            console.log('🔵 Google Token Auth Request');
+            console.log('Token reçu:', idToken?.substring(0, 20) + '...');
+            const ticket = await this.googleClient.verifyIdToken({
+                idToken,
+                audience: this.configService.get('GOOGLE_CLIENT_ID'),
+            });
+            const payload = ticket.getPayload();
+            console.log('✅ Token vérifié, payload:', payload);
+            if (!payload) {
+                throw new common_1.UnauthorizedException('Token Google invalide');
+            }
+            let user = await this.UserModel.findOne({ email: payload.email });
+            if (user) {
+                if (!user.googleId) {
+                    user.googleId = payload.sub;
+                    user.profilePicture = payload.picture;
+                    user.isEmailVerified = true;
+                    user.authProvider = 'google';
+                    await user.save();
+                }
+            }
+            else {
+                user = await this.UserModel.create({
+                    googleId: payload.sub,
+                    name: payload.name,
+                    email: payload.email,
+                    password: '',
+                    profilePicture: payload.picture,
+                    isEmailVerified: true,
+                    authProvider: 'google',
+                });
+            }
+            return this.generateTokensForUser(user);
+        }
+        catch (error) {
+            console.error('❌ Error in Google Token Auth:', error);
+            throw new common_1.UnauthorizedException('Token Google invalide');
+        }
+    }
+    async generateTokensForUser(user) {
+        const payload = {
+            userId: user._id.toString(),
+            email: user.email,
+        };
+        const secret = this.configService.get('JWT_SECRET') || 'your-secret-key';
+        const refreshSecret = this.configService.get('JWT_REFRESH_SECRET') || 'your-refresh-secret';
+        const accessToken = this.jwtService.sign(payload, {
+            secret,
+            expiresIn: '1h',
+        });
+        const refreshTokenString = (0, uuid_1.v4)();
+        await this.storeRefreshToken(refreshTokenString, user._id.toString());
+        return {
+            success: true,
+            message: 'Connexion Google réussie',
+            accessToken,
+            refreshToken: refreshTokenString,
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                profilePicture: user.profilePicture,
+            },
+        };
     }
 };
 exports.AuthService = AuthService;

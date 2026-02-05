@@ -12,6 +12,8 @@ import {
 import { ResetToken, ResetTokenSchema } from './schemas/reset-token.schema';
 import { MailService } from 'src/services/mail.service';
 import { RolesModule } from 'src/roles/roles.module';
+import { GoogleStrategy } from './strategies/google.strategy';
+
 
 @Module({
   imports: [
@@ -44,7 +46,8 @@ import { RolesModule } from 'src/roles/roles.module';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, MailService],
+  providers: [AuthService, MailService ,GoogleStrategy
+],
   exports: [AuthService],
 })
 export class AuthModule {}

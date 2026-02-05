@@ -21,6 +21,10 @@ let User = class User extends mongoose_2.Document {
     language;
     carteHandicape;
     roleId;
+    googleId;
+    authProvider;
+    profilePicture;
+    isEmailVerified;
 };
 exports.User = User;
 __decorate([
@@ -55,6 +59,22 @@ __decorate([
     (0, mongoose_1.Prop)({ required: false }),
     __metadata("design:type", String)
 ], User.prototype, "roleId", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ unique: true, sparse: true }),
+    __metadata("design:type", String)
+], User.prototype, "googleId", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ enum: ['local', 'google'], default: 'local' }),
+    __metadata("design:type", String)
+], User.prototype, "authProvider", void 0);
+__decorate([
+    (0, mongoose_1.Prop)(),
+    __metadata("design:type", String)
+], User.prototype, "profilePicture", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ default: false }),
+    __metadata("design:type", Boolean)
+], User.prototype, "isEmailVerified", void 0);
 exports.User = User = __decorate([
     (0, mongoose_1.Schema)()
 ], User);

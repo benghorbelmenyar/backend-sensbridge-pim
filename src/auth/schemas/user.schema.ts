@@ -27,6 +27,18 @@ export class User extends Document {
 
   @Prop({ required: false })
   roleId?: string;
+  @Prop({ unique: true, sparse: true })
+  googleId?: string;
+
+  @Prop({ enum: ['local', 'google'], default: 'local' })
+  authProvider: string;
+
+  @Prop()
+  profilePicture?: string;
+
+  @Prop({ default: false })
+  isEmailVerified: boolean;
+
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

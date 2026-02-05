@@ -18,6 +18,7 @@ const refresh_token_schema_1 = require("./schemas/refresh-token.schema");
 const reset_token_schema_1 = require("./schemas/reset-token.schema");
 const mail_service_1 = require("../services/mail.service");
 const roles_module_1 = require("../roles/roles.module");
+const google_strategy_1 = require("./strategies/google.strategy");
 let AuthModule = class AuthModule {
 };
 exports.AuthModule = AuthModule;
@@ -52,7 +53,8 @@ exports.AuthModule = AuthModule = __decorate([
             }),
         ],
         controllers: [auth_controller_1.AuthController],
-        providers: [auth_service_1.AuthService, mail_service_1.MailService],
+        providers: [auth_service_1.AuthService, mail_service_1.MailService, google_strategy_1.GoogleStrategy
+        ],
         exports: [auth_service_1.AuthService],
     })
 ], AuthModule);

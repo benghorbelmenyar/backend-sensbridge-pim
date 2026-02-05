@@ -16,6 +16,7 @@ export declare class AuthService {
     private configService;
     private mailService;
     private rolesService;
+    private googleClient;
     constructor(UserModel: Model<User>, RefreshTokenModel: Model<RefreshToken>, ResetTokenModel: Model<ResetToken>, jwtService: JwtService, configService: ConfigService, mailService: MailService, rolesService: RolesService);
     signup(signupData: SignupDto): Promise<{
         user: {
@@ -71,4 +72,24 @@ export declare class AuthService {
         resource: import("../roles/enums/resource.enum").Resource;
         actions: import("../roles/enums/action.enum").Action[];
     }[]>;
+    validateGoogleUser(profile: any): Promise<mongoose.Document<unknown, {}, User, {}, mongoose.DefaultSchemaOptions> & User & Required<{
+        _id: mongoose.Types.ObjectId;
+    }> & {
+        __v: number;
+    } & {
+        id: string;
+    }>;
+    googleTokenLogin(idToken: string): Promise<{
+        success: boolean;
+        message: string;
+        accessToken: string;
+        refreshToken: string;
+        user: {
+            id: mongoose.Types.ObjectId;
+            name: string;
+            email: string;
+            profilePicture: string | undefined;
+        };
+    }>;
+    private generateTokensForUser;
 }

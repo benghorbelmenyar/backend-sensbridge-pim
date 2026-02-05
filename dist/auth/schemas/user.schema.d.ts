@@ -8,6 +8,10 @@ export declare class User extends Document {
     language?: string;
     carteHandicape?: string;
     roleId?: string;
+    googleId?: string;
+    authProvider: string;
+    profilePicture?: string;
+    isEmailVerified: boolean;
 }
 export declare const UserSchema: import("mongoose").Schema<User, import("mongoose").Model<User, any, any, any, (Document<unknown, any, User, any, import("mongoose").DefaultSchemaOptions> & User & Required<{
     _id: import("mongoose").Types.ObjectId;
@@ -101,6 +105,42 @@ export declare const UserSchema: import("mongoose").Schema<User, import("mongoos
         id: string;
     }> | undefined;
     roleId?: import("mongoose").SchemaDefinitionProperty<string | undefined, User, Document<unknown, {}, User, {
+        id: string;
+    }, import("mongoose").ResolveSchemaOptions<import("mongoose").DefaultSchemaOptions>> & Omit<User & Required<{
+        _id: import("mongoose").Types.ObjectId;
+    }> & {
+        __v: number;
+    }, "id"> & {
+        id: string;
+    }> | undefined;
+    googleId?: import("mongoose").SchemaDefinitionProperty<string | undefined, User, Document<unknown, {}, User, {
+        id: string;
+    }, import("mongoose").ResolveSchemaOptions<import("mongoose").DefaultSchemaOptions>> & Omit<User & Required<{
+        _id: import("mongoose").Types.ObjectId;
+    }> & {
+        __v: number;
+    }, "id"> & {
+        id: string;
+    }> | undefined;
+    authProvider?: import("mongoose").SchemaDefinitionProperty<string, User, Document<unknown, {}, User, {
+        id: string;
+    }, import("mongoose").ResolveSchemaOptions<import("mongoose").DefaultSchemaOptions>> & Omit<User & Required<{
+        _id: import("mongoose").Types.ObjectId;
+    }> & {
+        __v: number;
+    }, "id"> & {
+        id: string;
+    }> | undefined;
+    profilePicture?: import("mongoose").SchemaDefinitionProperty<string | undefined, User, Document<unknown, {}, User, {
+        id: string;
+    }, import("mongoose").ResolveSchemaOptions<import("mongoose").DefaultSchemaOptions>> & Omit<User & Required<{
+        _id: import("mongoose").Types.ObjectId;
+    }> & {
+        __v: number;
+    }, "id"> & {
+        id: string;
+    }> | undefined;
+    isEmailVerified?: import("mongoose").SchemaDefinitionProperty<boolean, User, Document<unknown, {}, User, {
         id: string;
     }, import("mongoose").ResolveSchemaOptions<import("mongoose").DefaultSchemaOptions>> & Omit<User & Required<{
         _id: import("mongoose").Types.ObjectId;

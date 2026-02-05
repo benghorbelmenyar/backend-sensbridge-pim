@@ -20,9 +20,12 @@ import { nanoid } from 'nanoid';
 import { ResetToken } from './schemas/reset-token.schema';
 import { MailService } from 'src/services/mail.service';
 import { RolesService } from 'src/roles/roles.service';
+import { OAuth2Client } from 'google-auth-library';
 
 @Injectable()
 export class AuthService {
+  private googleClient: OAuth2Client; // ✅ Déclarer googleClient
+
   constructor(
     @InjectModel(User.name) private UserModel: Model<User>,
     @InjectModel(RefreshToken.name)
@@ -33,7 +36,12 @@ export class AuthService {
     private configService: ConfigService,
     private mailService: MailService,
     private rolesService: RolesService,
-  ) {}
+  ) {
+    // ✅ Initialiser googleClient dans le constructeur
+    this.googleClient = new OAuth2Client(
+      this.configService.get<string>('GOOGLE_CLIENT_ID'),
+    );
+  }
 
   async signup(signupData: SignupDto) {
     const { email, password, name, phone, userType, language, carteHandicape } = signupData;
@@ -202,7 +210,6 @@ export class AuthService {
     };
   }
 
-  // ✅ UNE SEULE VERSION de resetPassword
   async resetPassword(newPassword: string, resetToken: string) {
     console.log('═══════════════════════════════════════');
     console.log('🔵 RESET PASSWORD');
@@ -305,5 +312,121 @@ export class AuthService {
     }
 
     return role.permissions;
+  }
+
+  // ✅ MÉTHODE Google : Valider l'utilisateur Google (pour Strategy)
+  async validateGoogleUser(profile: any) {
+    console.log('✅ Validating Google user...');
+
+    // ✅ CORRECTION: UserModel au lieu de userModel
+    let user = await this.UserModel.findOne({ 
+      email: profile.emails[0].value 
+    });
+
+    if (user) {
+      if (!user.googleId) {
+        user.googleId = profile.id;
+        user.profilePicture = profile.photos?.[0]?.value;
+        user.isEmailVerified = true;
+        user.authProvider = 'google';
+        await user.save();
+      }
+    } else {
+      // ✅ CORRECTION: UserModel au lieu de userModel
+      user = await this.UserModel.create({
+        googleId: profile.id,
+        name: profile.displayName,
+        email: profile.emails[0].value,
+        password: '', // ✅ Mot de passe vide pour Google Auth
+        profilePicture: profile.photos?.[0]?.value,
+        isEmailVerified: true,
+        authProvider: 'google',
+      });
+    }
+
+    return user;
+  }
+
+  // ✅ MÉTHODE Google : Authentification via Token (pour mobile)
+  async googleTokenLogin(idToken: string) {
+    try {
+      console.log('🔵 Google Token Auth Request');
+      console.log('Token reçu:', idToken?.substring(0, 20) + '...');
+
+      // ✅ googleClient est maintenant défini
+      const ticket = await this.googleClient.verifyIdToken({
+        idToken,
+        audience: this.configService.get<string>('GOOGLE_CLIENT_ID'),
+      });
+
+      const payload = ticket.getPayload();
+      console.log('✅ Token vérifié, payload:', payload);
+
+      if (!payload) {
+        throw new UnauthorizedException('Token Google invalide');
+      }
+
+      // ✅ CORRECTION: UserModel au lieu de userModel
+      let user = await this.UserModel.findOne({ email: payload.email });
+
+      if (user) {
+        if (!user.googleId) {
+          user.googleId = payload.sub;
+          user.profilePicture = payload.picture;
+          user.isEmailVerified = true;
+          user.authProvider = 'google';
+          await user.save();
+        }
+      } else {
+        // ✅ CORRECTION: UserModel au lieu de userModel
+        user = await this.UserModel.create({
+          googleId: payload.sub,
+          name: payload.name,
+          email: payload.email,
+          password: '', // ✅ Mot de passe vide pour Google Auth
+          profilePicture: payload.picture,
+          isEmailVerified: true,
+          authProvider: 'google',
+        });
+      }
+
+      return this.generateTokensForUser(user);
+    } catch (error) {
+      console.error('❌ Error in Google Token Auth:', error);
+      throw new UnauthorizedException('Token Google invalide');
+    }
+  }
+
+  // ✅ MÉTHODE : Générer les tokens pour un utilisateur
+  // ✅ CORRECTION: Changer UserDocument en User
+  private async generateTokensForUser(user: User) {
+    const payload = { 
+      userId: user._id.toString(),
+      email: user.email,
+    };
+
+    const secret = this.configService.get<string>('JWT_SECRET') || 'your-secret-key';
+    const refreshSecret = this.configService.get<string>('JWT_REFRESH_SECRET') || 'your-refresh-secret';
+
+    const accessToken = this.jwtService.sign(payload, {
+      secret,
+      expiresIn: '1h',
+    });
+
+    const refreshTokenString = uuidv4();
+    await this.storeRefreshToken(refreshTokenString, user._id.toString());
+
+    return {
+      success: true,
+      message: 'Connexion Google réussie',
+      accessToken,
+      refreshToken: refreshTokenString,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        profilePicture: user.profilePicture,
+      },
+    };
   }
 }
