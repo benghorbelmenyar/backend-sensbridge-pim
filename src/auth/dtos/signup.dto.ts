@@ -16,8 +16,7 @@ export class SignupDto {
   @IsOptional()
   phone?: string;
 
-  @IsEnum(['ADMIN', 'USER', 'MANAGER']) // Ajustez selon vos types d'utilisateurs
-  @IsOptional()
+@IsEnum(['ORGANIZATION', 'DEAF_PERSON', 'NORMAL_PERSON'])  @IsOptional()
   userType?: string;
 
   @IsString()

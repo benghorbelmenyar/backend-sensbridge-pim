@@ -41,7 +41,7 @@ __decorate([
     __metadata("design:type", String)
 ], SignupDto.prototype, "phone", void 0);
 __decorate([
-    (0, class_validator_1.IsEnum)(['ADMIN', 'USER', 'MANAGER']),
+    (0, class_validator_1.IsEnum)(['ORGANIZATION', 'DEAF_PERSON', 'NORMAL_PERSON']),
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], SignupDto.prototype, "userType", void 0);
