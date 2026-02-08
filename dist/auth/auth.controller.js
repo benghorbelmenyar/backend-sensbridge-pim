@@ -26,6 +26,11 @@ const reset_password_dto_1 = require("./dtos/reset-password.dto");
 const verify_otp_dto_1 = require("./dtos/verify-otp.dto");
 const google_auth_guard_1 = require("../guards/google-auth.guard");
 const google_token_dto_1 = require("./dtos/google-token.dto");
+const update_profile_dto_1 = require("./dtos/update-profile.dto");
+const platform_express_1 = require("@nestjs/platform-express");
+const common_2 = require("@nestjs/common");
+const multer_1 = require("multer");
+const path_1 = require("path");
 let AuthController = class AuthController {
     authService;
     constructor(authService) {
@@ -66,6 +71,23 @@ let AuthController = class AuthController {
     }
     async googleTokenAuth(googleTokenDto) {
         return this.authService.googleTokenLogin(googleTokenDto.idToken);
+    }
+    async updateProfile(updateProfileDto, req) {
+        return this.authService.updateProfile(req.userId, updateProfileDto);
+    }
+    async getProfile(req) {
+        return this.authService.getProfile(req.userId);
+    }
+    async uploadProfilePicture(file, req) {
+        const imageUrl = `/uploads/profiles/${file.filename}`;
+        await this.authService.updateProfile(req.userId, {
+            profilePicture: imageUrl,
+        });
+        return {
+            success: true,
+            message: 'Profile picture uploaded successfully',
+            profilePicture: imageUrl,
+        };
     }
 };
 exports.AuthController = AuthController;
@@ -168,6 +190,59 @@ __decorate([
     __metadata("design:paramtypes", [google_token_dto_1.GoogleTokenDto]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "googleTokenAuth", null);
+__decorate([
+    (0, common_1.UseGuards)(authentication_guard_1.AuthenticationGuard),
+    (0, common_1.Put)('profile'),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOperation)({ summary: 'Mettre à jour le profil utilisateur' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Profil mis à jour avec succès' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Non authentifié' }),
+    (0, swagger_1.ApiResponse)({ status: 400, description: 'Email déjà utilisé' }),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [update_profile_dto_1.UpdateProfileDto, Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "updateProfile", null);
+__decorate([
+    (0, common_1.UseGuards)(authentication_guard_1.AuthenticationGuard),
+    (0, common_1.Get)('profile'),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOperation)({ summary: 'Récupérer le profil utilisateur' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Profil récupéré avec succès' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Non authentifié' }),
+    __param(0, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "getProfile", null);
+__decorate([
+    (0, common_1.UseGuards)(authentication_guard_1.AuthenticationGuard),
+    (0, common_1.Post)('profile/upload-picture'),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, common_2.UseInterceptors)((0, platform_express_1.FileInterceptor)('file', {
+        storage: (0, multer_1.diskStorage)({
+            destination: './uploads/profiles',
+            filename: (req, file, callback) => {
+                const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+                callback(null, `profile-${uniqueSuffix}${(0, path_1.extname)(file.originalname)}`);
+            },
+        }),
+        fileFilter: (req, file, callback) => {
+            if (!file.mimetype.match(/\/(jpg|jpeg|png|gif)$/)) {
+                return callback(new Error('Only image files are allowed!'), false);
+            }
+            callback(null, true);
+        },
+        limits: { fileSize: 5 * 1024 * 1024 },
+    })),
+    (0, swagger_1.ApiOperation)({ summary: 'Upload photo de profil' }),
+    __param(0, (0, common_2.UploadedFile)()),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "uploadProfilePicture", null);
 exports.AuthController = AuthController = __decorate([
     (0, swagger_1.ApiTags)('Authentication'),
     (0, common_1.Controller)('auth'),

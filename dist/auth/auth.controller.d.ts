@@ -8,6 +8,7 @@ import { ForgotPasswordDto } from './dtos/forgot-password.dto';
 import { ResetPasswordDto } from './dtos/reset-password.dto';
 import { VerifyOtpDto } from './dtos/verify-otp.dto';
 import { GoogleTokenDto } from './dtos/google-token.dto';
+import { UpdateProfileDto } from './dtos/update-profile.dto';
 export declare class AuthController {
     private readonly authService;
     constructor(authService: AuthService);
@@ -69,5 +70,39 @@ export declare class AuthController {
             email: string;
             profilePicture: string | undefined;
         };
+    }>;
+    updateProfile(updateProfileDto: UpdateProfileDto, req: any): Promise<{
+        success: boolean;
+        message: string;
+        user: {
+            id: import("mongoose").Types.ObjectId;
+            name: string;
+            email: string;
+            phone: string | undefined;
+            userType: string | undefined;
+            language: string | undefined;
+            carteHandicape: string | undefined;
+            profilePicture: string | undefined;
+        };
+    }>;
+    getProfile(req: any): Promise<{
+        success: boolean;
+        user: {
+            id: import("mongoose").Types.ObjectId;
+            name: string;
+            email: string;
+            phone: string | undefined;
+            userType: string | undefined;
+            language: string | undefined;
+            carteHandicape: string | undefined;
+            profilePicture: string | undefined;
+            authProvider: string;
+            isEmailVerified: boolean;
+        };
+    }>;
+    uploadProfilePicture(file: Express.Multer.File, req: any): Promise<{
+        success: boolean;
+        message: string;
+        profilePicture: string;
     }>;
 }

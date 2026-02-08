@@ -21,6 +21,7 @@ import { ResetToken } from './schemas/reset-token.schema';
 import { MailService } from 'src/services/mail.service';
 import { RolesService } from 'src/roles/roles.service';
 import { OAuth2Client } from 'google-auth-library';
+import { UpdateProfileDto } from './dtos/update-profile.dto';
 
 @Injectable()
 export class AuthService {
@@ -429,4 +430,76 @@ export class AuthService {
       },
     };
   }
+  async updateProfile(userId: string, updateData: UpdateProfileDto) {
+  console.log('═══════════════════════════════════════');
+  console.log('🔵 UPDATE PROFILE - userId:', userId);
+  console.log('Données à mettre à jour:', updateData);
+
+  const user = await this.UserModel.findById(userId);
+  if (!user) {
+    throw new NotFoundException('User not found');
+  }
+
+  // ✅ Vérifier si l'email est déjà utilisé par un autre utilisateur
+  if (updateData.email && updateData.email !== user.email) {
+    const emailExists = await this.UserModel.findOne({ 
+      email: updateData.email,
+      _id: { $ne: userId } // Exclure l'utilisateur actuel
+    });
+    
+    if (emailExists) {
+      throw new BadRequestException('Email already in use');
+    }
+  }
+
+  // ✅ Mettre à jour uniquement les champs fournis
+  Object.keys(updateData).forEach(key => {
+    if (updateData[key] !== undefined) {
+      user[key] = updateData[key];
+    }
+  });
+
+  await user.save();
+
+  console.log('✅ Profil mis à jour avec succès');
+  console.log('═══════════════════════════════════════');
+
+  return {
+    success: true,
+    message: 'Profile updated successfully',
+    user: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      userType: user.userType,
+      language: user.language,
+      carteHandicape: user.carteHandicape,
+      profilePicture: user.profilePicture,
+    },
+  };
+}
+async getProfile(userId: string) {
+  const user = await this.UserModel.findById(userId).select('-password');
+  
+  if (!user) {
+    throw new NotFoundException('User not found');
+  }
+
+  return {
+    success: true,
+    user: {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      phone: user.phone,
+      userType: user.userType,
+      language: user.language,
+      carteHandicape: user.carteHandicape,
+      profilePicture: user.profilePicture,
+      authProvider: user.authProvider,
+      isEmailVerified: user.isEmailVerified,
+    },
+  };
+}
 }

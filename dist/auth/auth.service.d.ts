@@ -8,6 +8,7 @@ import { RefreshToken } from './schemas/refresh-token.schema';
 import { ResetToken } from './schemas/reset-token.schema';
 import { MailService } from 'src/services/mail.service';
 import { RolesService } from 'src/roles/roles.service';
+import { UpdateProfileDto } from './dtos/update-profile.dto';
 export declare class AuthService {
     private UserModel;
     private RefreshTokenModel;
@@ -92,4 +93,33 @@ export declare class AuthService {
         };
     }>;
     private generateTokensForUser;
+    updateProfile(userId: string, updateData: UpdateProfileDto): Promise<{
+        success: boolean;
+        message: string;
+        user: {
+            id: mongoose.Types.ObjectId;
+            name: string;
+            email: string;
+            phone: string | undefined;
+            userType: string | undefined;
+            language: string | undefined;
+            carteHandicape: string | undefined;
+            profilePicture: string | undefined;
+        };
+    }>;
+    getProfile(userId: string): Promise<{
+        success: boolean;
+        user: {
+            id: mongoose.Types.ObjectId;
+            name: string;
+            email: string;
+            phone: string | undefined;
+            userType: string | undefined;
+            language: string | undefined;
+            carteHandicape: string | undefined;
+            profilePicture: string | undefined;
+            authProvider: string;
+            isEmailVerified: boolean;
+        };
+    }>;
 }

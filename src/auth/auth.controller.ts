@@ -12,6 +12,11 @@ import { ResetPasswordDto } from './dtos/reset-password.dto';
 import { VerifyOtpDto } from './dtos/verify-otp.dto';
 import { GoogleAuthGuard } from 'src/guards/google-auth.guard';
 import { GoogleTokenDto } from './dtos/google-token.dto';
+import { UpdateProfileDto } from './dtos/update-profile.dto';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { UploadedFile, UseInterceptors } from '@nestjs/common';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -117,4 +122,62 @@ export class AuthController {
   async googleTokenAuth(@Body() googleTokenDto: GoogleTokenDto) {
     return this.authService.googleTokenLogin(googleTokenDto.idToken);
   }
+  @UseGuards(AuthenticationGuard)
+@Put('profile')
+@ApiBearerAuth()
+@ApiOperation({ summary: 'Mettre à jour le profil utilisateur' })
+@ApiResponse({ status: 200, description: 'Profil mis à jour avec succès' })
+@ApiResponse({ status: 401, description: 'Non authentifié' })
+@ApiResponse({ status: 400, description: 'Email déjà utilisé' })
+async updateProfile(
+  @Body() updateProfileDto: UpdateProfileDto,
+  @Req() req,
+) {
+  return this.authService.updateProfile(req.userId, updateProfileDto);
+}
+@UseGuards(AuthenticationGuard)
+@Get('profile')
+@ApiBearerAuth()
+@ApiOperation({ summary: 'Récupérer le profil utilisateur' })
+@ApiResponse({ status: 200, description: 'Profil récupéré avec succès' })
+@ApiResponse({ status: 401, description: 'Non authentifié' })
+async getProfile(@Req() req) {
+  return this.authService.getProfile(req.userId);
+}
+// Dans AuthController
+@UseGuards(AuthenticationGuard)
+@Post('profile/upload-picture')
+@ApiBearerAuth()
+@UseInterceptors(
+  FileInterceptor('file', {
+    storage: diskStorage({
+      destination: './uploads/profiles',
+      filename: (req, file, callback) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+        callback(null, `profile-${uniqueSuffix}${extname(file.originalname)}`);
+      },
+    }),
+    fileFilter: (req, file, callback) => {
+      if (!file.mimetype.match(/\/(jpg|jpeg|png|gif)$/)) {
+        return callback(new Error('Only image files are allowed!'), false);
+      }
+      callback(null, true);
+    },
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
+  }),
+)
+@ApiOperation({ summary: 'Upload photo de profil' })
+async uploadProfilePicture(@UploadedFile() file: Express.Multer.File, @Req() req) {
+  const imageUrl = `/uploads/profiles/${file.filename}`;
+  
+  await this.authService.updateProfile(req.userId, {
+    profilePicture: imageUrl,
+  });
+
+  return {
+    success: true,
+    message: 'Profile picture uploaded successfully',
+    profilePicture: imageUrl,
+  };
+}
 }

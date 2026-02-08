@@ -386,6 +386,67 @@ let AuthService = class AuthService {
             },
         };
     }
+    async updateProfile(userId, updateData) {
+        console.log('═══════════════════════════════════════');
+        console.log('🔵 UPDATE PROFILE - userId:', userId);
+        console.log('Données à mettre à jour:', updateData);
+        const user = await this.UserModel.findById(userId);
+        if (!user) {
+            throw new common_1.NotFoundException('User not found');
+        }
+        if (updateData.email && updateData.email !== user.email) {
+            const emailExists = await this.UserModel.findOne({
+                email: updateData.email,
+                _id: { $ne: userId }
+            });
+            if (emailExists) {
+                throw new common_1.BadRequestException('Email already in use');
+            }
+        }
+        Object.keys(updateData).forEach(key => {
+            if (updateData[key] !== undefined) {
+                user[key] = updateData[key];
+            }
+        });
+        await user.save();
+        console.log('✅ Profil mis à jour avec succès');
+        console.log('═══════════════════════════════════════');
+        return {
+            success: true,
+            message: 'Profile updated successfully',
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                phone: user.phone,
+                userType: user.userType,
+                language: user.language,
+                carteHandicape: user.carteHandicape,
+                profilePicture: user.profilePicture,
+            },
+        };
+    }
+    async getProfile(userId) {
+        const user = await this.UserModel.findById(userId).select('-password');
+        if (!user) {
+            throw new common_1.NotFoundException('User not found');
+        }
+        return {
+            success: true,
+            user: {
+                id: user._id,
+                name: user.name,
+                email: user.email,
+                phone: user.phone,
+                userType: user.userType,
+                language: user.language,
+                carteHandicape: user.carteHandicape,
+                profilePicture: user.profilePicture,
+                authProvider: user.authProvider,
+                isEmailVerified: user.isEmailVerified,
+            },
+        };
+    }
 };
 exports.AuthService = AuthService;
 exports.AuthService = AuthService = __decorate([

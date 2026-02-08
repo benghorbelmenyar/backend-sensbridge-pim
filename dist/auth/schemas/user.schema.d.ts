@@ -32,15 +32,6 @@ export declare const UserSchema: import("mongoose").Schema<User, import("mongoos
 }, "id"> & {
     id: string;
 }, {
-    _id?: import("mongoose").SchemaDefinitionProperty<import("mongoose").Types.ObjectId, User, Document<unknown, {}, User, {
-        id: string;
-    }, import("mongoose").ResolveSchemaOptions<import("mongoose").DefaultSchemaOptions>> & Omit<User & Required<{
-        _id: import("mongoose").Types.ObjectId;
-    }> & {
-        __v: number;
-    }, "id"> & {
-        id: string;
-    }> | undefined;
     name?: import("mongoose").SchemaDefinitionProperty<string, User, Document<unknown, {}, User, {
         id: string;
     }, import("mongoose").ResolveSchemaOptions<import("mongoose").DefaultSchemaOptions>> & Omit<User & Required<{
@@ -96,6 +87,15 @@ export declare const UserSchema: import("mongoose").Schema<User, import("mongoos
         id: string;
     }> | undefined;
     carteHandicape?: import("mongoose").SchemaDefinitionProperty<string | undefined, User, Document<unknown, {}, User, {
+        id: string;
+    }, import("mongoose").ResolveSchemaOptions<import("mongoose").DefaultSchemaOptions>> & Omit<User & Required<{
+        _id: import("mongoose").Types.ObjectId;
+    }> & {
+        __v: number;
+    }, "id"> & {
+        id: string;
+    }> | undefined;
+    _id?: import("mongoose").SchemaDefinitionProperty<import("mongoose").Types.ObjectId, User, Document<unknown, {}, User, {
         id: string;
     }, import("mongoose").ResolveSchemaOptions<import("mongoose").DefaultSchemaOptions>> & Omit<User & Required<{
         _id: import("mongoose").Types.ObjectId;
