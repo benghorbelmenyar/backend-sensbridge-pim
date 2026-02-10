@@ -5,6 +5,8 @@ import { AuthService } from './auth.service';
 import { AuthController } from './auth.controller';
 import { MongooseModule } from '@nestjs/mongoose';
 import { User, UserSchema } from './schemas/user.schema';
+import { OcrService } from 'src/services/ocr.service'; // ✅ AJOUTER
+
 import {
   RefreshToken,
   RefreshTokenSchema,
@@ -46,7 +48,7 @@ import { GoogleStrategy } from './strategies/google.strategy';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, MailService ,GoogleStrategy
+  providers: [AuthService, MailService ,GoogleStrategy ,OcrService,
 ],
   exports: [AuthService],
 })

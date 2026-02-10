@@ -1,8 +1,11 @@
-// user.schema.ts
+// src/auth/schemas/user.schema.ts - AJOUTER CES CHAMPS À VOTRE SCHÉMA
+
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
 
-@Schema()
+@Schema({
+  timestamps: true,
+})
 export class User extends Document {
   @Prop({ required: true })
   name: string;
@@ -13,32 +16,46 @@ export class User extends Document {
   @Prop({ required: true })
   password: string;
 
-  @Prop({ required: false }) // ← Optionnel
+  @Prop()
   phone?: string;
 
-  @Prop({ required: false, default: 'USER' }) // ← Optionnel avec valeur par défaut
+  @Prop()
   userType?: string;
 
-  @Prop({ required: false }) // ← Optionnel
+  @Prop()
   language?: string;
 
-  @Prop({ required: false }) // ← Optionnel
+  @Prop()
   carteHandicape?: string;
-
-  @Prop({ required: false })
-  roleId?: string;
-  @Prop({ unique: true, sparse: true })
-  googleId?: string;
-
-  @Prop({ enum: ['local', 'google'], default: 'local' })
-  authProvider: string;
 
   @Prop()
   profilePicture?: string;
 
-  @Prop({ default: false })
-  isEmailVerified: boolean;
+  @Prop()
+  googleId?: string;
 
+  @Prop({ default: 'local' })
+  authProvider?: string;
+
+  @Prop({ default: false })
+  isEmailVerified?: boolean;
+
+  @Prop()
+  roleId?: string;
+
+  // ✅ NOUVEAUX CHAMPS POUR LA VÉRIFICATION HANDICAP
+  @Prop({ default: false })
+  isHandicapVerified?: boolean;
+
+  @Prop()
+  handicapVerifiedAt?: Date;
+
+  @Prop({ type: Object })
+  handicapData?: {
+    cardNumber?: string;
+    disabilityType?: string;
+    expiryDate?: string;
+  };
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

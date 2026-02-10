@@ -14,6 +14,7 @@ const auth_service_1 = require("./auth.service");
 const auth_controller_1 = require("./auth.controller");
 const mongoose_1 = require("@nestjs/mongoose");
 const user_schema_1 = require("./schemas/user.schema");
+const ocr_service_1 = require("../services/ocr.service");
 const refresh_token_schema_1 = require("./schemas/refresh-token.schema");
 const reset_token_schema_1 = require("./schemas/reset-token.schema");
 const mail_service_1 = require("../services/mail.service");
@@ -53,7 +54,7 @@ exports.AuthModule = AuthModule = __decorate([
             }),
         ],
         controllers: [auth_controller_1.AuthController],
-        providers: [auth_service_1.AuthService, mail_service_1.MailService, google_strategy_1.GoogleStrategy
+        providers: [auth_service_1.AuthService, mail_service_1.MailService, google_strategy_1.GoogleStrategy, ocr_service_1.OcrService,
         ],
         exports: [auth_service_1.AuthService],
     })

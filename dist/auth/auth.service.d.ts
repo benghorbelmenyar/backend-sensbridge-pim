@@ -118,8 +118,21 @@ export declare class AuthService {
             language: string | undefined;
             carteHandicape: string | undefined;
             profilePicture: string | undefined;
-            authProvider: string;
-            isEmailVerified: boolean;
+            authProvider: string | undefined;
+            isEmailVerified: boolean | undefined;
+        };
+    }>;
+    uploadAndVerifyHandicapCard(userId: string, imagePath: string): Promise<{
+        success: boolean;
+        message: string;
+        isVerified: boolean;
+        confidence: number;
+        carteHandicape: string;
+        extractedData: {
+            fullName?: string;
+            cardNumber?: string;
+            expiryDate?: string;
+            disabilityType?: string;
         };
     }>;
 }

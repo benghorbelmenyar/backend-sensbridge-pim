@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Put, Req, UseGuards, Get, Res } from '@nestjs/common';
+import { Body, Controller, Post, Put, Req, UseGuards, Get, Res , BadRequestException} from '@nestjs/common';
 import type { Response } from 'express';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
@@ -157,12 +157,25 @@ async getProfile(@Req() req) {
         callback(null, `profile-${uniqueSuffix}${extname(file.originalname)}`);
       },
     }),
-    fileFilter: (req, file, callback) => {
-      if (!file.mimetype.match(/\/(jpg|jpeg|png|gif)$/)) {
-        return callback(new Error('Only image files are allowed!'), false);
-      }
-      callback(null, true);
-    },
+   fileFilter: (req, file, cb) => {
+  console.log('📄 Mimetype reçu:', file.mimetype);
+  console.log('📄 Original name:', file.originalname);
+
+  // ✅ Android / iOS safe
+  if (
+    !file.mimetype.startsWith('image/') &&
+    file.mimetype !== 'application/octet-stream'
+  ) {
+    return cb(
+      new BadRequestException('Seules les images sont acceptées!'),
+      false,
+    );
+  }
+
+  cb(null, true);
+},
+
+
     limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
   }),
 )
@@ -180,4 +193,82 @@ async uploadProfilePicture(@UploadedFile() file: Express.Multer.File, @Req() req
     profilePicture: imageUrl,
   };
 }
+// src/auth/auth.controller.ts - AJOUTER CETTE ROUTE APRÈS uploadProfilePicture
+
+  /**
+   * ✅ UPLOAD ET VÉRIFICATION DE LA CARTE D'HANDICAP
+   */
+  @UseGuards(AuthenticationGuard)
+  @Post('profile/upload-handicap-card')
+  @ApiBearerAuth()
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: './uploads/handicap-cards',
+        filename: (req, file, callback) => {
+          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+          callback(null, `handicap-${uniqueSuffix}${extname(file.originalname)}`);
+        },
+      }),
+      fileFilter: (req, file, cb) => {
+  console.log('📄 [HANDICAP] Mimetype reçu:', file.mimetype);
+  console.log('📄 [HANDICAP] Original name:', file.originalname);
+
+  // ✅ Android / iOS SAFE
+  if (
+    !file.mimetype.startsWith('image/') &&
+    file.mimetype !== 'application/octet-stream'
+  ) {
+    return cb(
+      new BadRequestException('Seules les images sont acceptées!'),
+      false,
+    );
+  }
+
+  cb(null, true);
+}
+,
+      limits: { 
+        fileSize: 10 * 1024 * 1024, // 10MB max (cartes scannées peuvent être lourdes)
+      },
+    }),
+  )
+  @ApiOperation({ summary: 'Upload et vérification de la carte d\'handicap' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Carte vérifiée avec succès',
+    schema: {
+      example: {
+        success: true,
+        message: 'Carte d\'handicap vérifiée avec succès',
+        isVerified: true,
+        confidence: 95,
+        carteHandicape: '/uploads/handicap-cards/handicap-123456.jpg',
+        extractedData: {
+          fullName: 'Ahmed Ben Ali',
+          cardNumber: 'TN-2024-12345',
+          disabilityType: 'Moteur',
+          expiryDate: '2026-12-31'
+        }
+      }
+    }
+  })
+  @ApiResponse({ status: 400, description: 'Carte invalide ou non conforme' })
+  @ApiResponse({ status: 401, description: 'Non authentifié' })
+  async uploadHandicapCard(
+    @UploadedFile() file: Express.Multer.File,
+    @Req() req,
+  ) {
+    if (!file) {
+      throw new BadRequestException('Aucun fichier fourni');
+    }
+
+    console.log('📸 Fichier reçu:', file.filename);
+    console.log('📍 Path:', file.path);
+
+    return this.authService.uploadAndVerifyHandicapCard(
+      req.userId,
+      file.path,
+    );
+  }
 }

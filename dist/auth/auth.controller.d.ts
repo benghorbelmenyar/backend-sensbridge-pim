@@ -96,13 +96,26 @@ export declare class AuthController {
             language: string | undefined;
             carteHandicape: string | undefined;
             profilePicture: string | undefined;
-            authProvider: string;
-            isEmailVerified: boolean;
+            authProvider: string | undefined;
+            isEmailVerified: boolean | undefined;
         };
     }>;
     uploadProfilePicture(file: Express.Multer.File, req: any): Promise<{
         success: boolean;
         message: string;
         profilePicture: string;
+    }>;
+    uploadHandicapCard(file: Express.Multer.File, req: any): Promise<{
+        success: boolean;
+        message: string;
+        isVerified: boolean;
+        confidence: number;
+        carteHandicape: string;
+        extractedData: {
+            fullName?: string;
+            cardNumber?: string;
+            expiryDate?: string;
+            disabilityType?: string;
+        };
     }>;
 }

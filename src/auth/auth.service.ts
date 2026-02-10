@@ -22,6 +22,8 @@ import { MailService } from 'src/services/mail.service';
 import { RolesService } from 'src/roles/roles.service';
 import { OAuth2Client } from 'google-auth-library';
 import { UpdateProfileDto } from './dtos/update-profile.dto';
+import * as path from 'path';
+import { OcrService } from 'src/services/ocr.service';
 
 @Injectable()
 export class AuthService {
@@ -502,4 +504,79 @@ async getProfile(userId: string) {
     },
   };
 }
+// src/auth/auth.service.ts - AJOUTER CES MÉTHODES À LA FIN DE VOTRE CLASSE
+
+  /**
+   * ✅ UPLOAD ET ANALYSE DE LA CARTE D'HANDICAP
+   */
+  async uploadAndVerifyHandicapCard(
+    userId: string,
+    imagePath: string,
+  ) {
+    console.log('═══════════════════════════════════════');
+    console.log('🔵 UPLOAD & VERIFY HANDICAP CARD');
+    console.log('👤 User ID:', userId);
+    console.log('📸 Image:', imagePath);
+
+    // 1️⃣ Récupérer l'utilisateur
+    const user = await this.UserModel.findById(userId);
+    if (!user) {
+      throw new NotFoundException('Utilisateur non trouvé');
+    }
+
+    // 2️⃣ Analyser la carte avec OCR (injecter OcrService dans le constructor)
+    const ocrService = new OcrService(this.configService);
+    const analysisResult = await ocrService.analyzeHandicapCard(imagePath);
+
+    // 3️⃣ Vérifier si la carte est valide
+    if (!analysisResult.isValid) {
+      console.log('❌ Carte invalide:', analysisResult.reason);
+      throw new BadRequestException(
+        `Carte d'handicap invalide: ${analysisResult.reason}`
+      );
+    }
+
+    // 4️⃣ Vérifier si le nom correspond (optionnel mais recommandé)
+    if (analysisResult.extractedData.fullName) {
+      const nameMatch = ocrService.verifyNameMatch(
+        analysisResult.extractedData.fullName,
+        user.name,
+      );
+
+      if (!nameMatch) {
+        console.log('⚠️ Le nom sur la carte ne correspond pas au profil');
+        console.log('   Carte:', analysisResult.extractedData.fullName);
+        console.log('   Profil:', user.name);
+        
+        // Vous pouvez soit rejeter, soit juste avertir
+        // throw new BadRequestException('Le nom sur la carte ne correspond pas à votre profil');
+      }
+    }
+
+    // 5️⃣ Sauvegarder l'URL de la carte et marquer comme vérifié
+    const cardUrl = `/uploads/handicap-cards/${path.basename(imagePath)}`;
+    
+    user.carteHandicape = cardUrl;
+    user.isHandicapVerified = true; // ✅ Nouveau champ à ajouter au schema
+    user.handicapVerifiedAt = new Date();
+    user.handicapData = {
+      cardNumber: analysisResult.extractedData.cardNumber,
+      disabilityType: analysisResult.extractedData.disabilityType,
+      expiryDate: analysisResult.extractedData.expiryDate,
+    };
+
+    await user.save();
+
+    console.log('✅ Carte d\'handicap vérifiée et sauvegardée');
+    console.log('═══════════════════════════════════════');
+
+    return {
+      success: true,
+      message: 'Carte d\'handicap vérifiée avec succès',
+      isVerified: true,
+      confidence: analysisResult.confidence,
+      carteHandicape: cardUrl,
+      extractedData: analysisResult.extractedData,
+    };
+  }
 }

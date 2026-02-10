@@ -60,6 +60,8 @@ const reset_token_schema_1 = require("./schemas/reset-token.schema");
 const mail_service_1 = require("../services/mail.service");
 const roles_service_1 = require("../roles/roles.service");
 const google_auth_library_1 = require("google-auth-library");
+const path = __importStar(require("path"));
+const ocr_service_1 = require("../services/ocr.service");
 let AuthService = class AuthService {
     UserModel;
     RefreshTokenModel;
@@ -445,6 +447,50 @@ let AuthService = class AuthService {
                 authProvider: user.authProvider,
                 isEmailVerified: user.isEmailVerified,
             },
+        };
+    }
+    async uploadAndVerifyHandicapCard(userId, imagePath) {
+        console.log('═══════════════════════════════════════');
+        console.log('🔵 UPLOAD & VERIFY HANDICAP CARD');
+        console.log('👤 User ID:', userId);
+        console.log('📸 Image:', imagePath);
+        const user = await this.UserModel.findById(userId);
+        if (!user) {
+            throw new common_1.NotFoundException('Utilisateur non trouvé');
+        }
+        const ocrService = new ocr_service_1.OcrService(this.configService);
+        const analysisResult = await ocrService.analyzeHandicapCard(imagePath);
+        if (!analysisResult.isValid) {
+            console.log('❌ Carte invalide:', analysisResult.reason);
+            throw new common_1.BadRequestException(`Carte d'handicap invalide: ${analysisResult.reason}`);
+        }
+        if (analysisResult.extractedData.fullName) {
+            const nameMatch = ocrService.verifyNameMatch(analysisResult.extractedData.fullName, user.name);
+            if (!nameMatch) {
+                console.log('⚠️ Le nom sur la carte ne correspond pas au profil');
+                console.log('   Carte:', analysisResult.extractedData.fullName);
+                console.log('   Profil:', user.name);
+            }
+        }
+        const cardUrl = `/uploads/handicap-cards/${path.basename(imagePath)}`;
+        user.carteHandicape = cardUrl;
+        user.isHandicapVerified = true;
+        user.handicapVerifiedAt = new Date();
+        user.handicapData = {
+            cardNumber: analysisResult.extractedData.cardNumber,
+            disabilityType: analysisResult.extractedData.disabilityType,
+            expiryDate: analysisResult.extractedData.expiryDate,
+        };
+        await user.save();
+        console.log('✅ Carte d\'handicap vérifiée et sauvegardée');
+        console.log('═══════════════════════════════════════');
+        return {
+            success: true,
+            message: 'Carte d\'handicap vérifiée avec succès',
+            isVerified: true,
+            confidence: analysisResult.confidence,
+            carteHandicape: cardUrl,
+            extractedData: analysisResult.extractedData,
         };
     }
 };

@@ -20,11 +20,14 @@ let User = class User extends mongoose_2.Document {
     userType;
     language;
     carteHandicape;
-    roleId;
+    profilePicture;
     googleId;
     authProvider;
-    profilePicture;
     isEmailVerified;
+    roleId;
+    isHandicapVerified;
+    handicapVerifiedAt;
+    handicapData;
 };
 exports.User = User;
 __decorate([
@@ -40,43 +43,57 @@ __decorate([
     __metadata("design:type", String)
 ], User.prototype, "password", void 0);
 __decorate([
-    (0, mongoose_1.Prop)({ required: false }),
+    (0, mongoose_1.Prop)(),
     __metadata("design:type", String)
 ], User.prototype, "phone", void 0);
 __decorate([
-    (0, mongoose_1.Prop)({ required: false, default: 'USER' }),
+    (0, mongoose_1.Prop)(),
     __metadata("design:type", String)
 ], User.prototype, "userType", void 0);
 __decorate([
-    (0, mongoose_1.Prop)({ required: false }),
+    (0, mongoose_1.Prop)(),
     __metadata("design:type", String)
 ], User.prototype, "language", void 0);
 __decorate([
-    (0, mongoose_1.Prop)({ required: false }),
+    (0, mongoose_1.Prop)(),
     __metadata("design:type", String)
 ], User.prototype, "carteHandicape", void 0);
-__decorate([
-    (0, mongoose_1.Prop)({ required: false }),
-    __metadata("design:type", String)
-], User.prototype, "roleId", void 0);
-__decorate([
-    (0, mongoose_1.Prop)({ unique: true, sparse: true }),
-    __metadata("design:type", String)
-], User.prototype, "googleId", void 0);
-__decorate([
-    (0, mongoose_1.Prop)({ enum: ['local', 'google'], default: 'local' }),
-    __metadata("design:type", String)
-], User.prototype, "authProvider", void 0);
 __decorate([
     (0, mongoose_1.Prop)(),
     __metadata("design:type", String)
 ], User.prototype, "profilePicture", void 0);
 __decorate([
+    (0, mongoose_1.Prop)(),
+    __metadata("design:type", String)
+], User.prototype, "googleId", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ default: 'local' }),
+    __metadata("design:type", String)
+], User.prototype, "authProvider", void 0);
+__decorate([
     (0, mongoose_1.Prop)({ default: false }),
     __metadata("design:type", Boolean)
 ], User.prototype, "isEmailVerified", void 0);
+__decorate([
+    (0, mongoose_1.Prop)(),
+    __metadata("design:type", String)
+], User.prototype, "roleId", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ default: false }),
+    __metadata("design:type", Boolean)
+], User.prototype, "isHandicapVerified", void 0);
+__decorate([
+    (0, mongoose_1.Prop)(),
+    __metadata("design:type", Date)
+], User.prototype, "handicapVerifiedAt", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ type: Object }),
+    __metadata("design:type", Object)
+], User.prototype, "handicapData", void 0);
 exports.User = User = __decorate([
-    (0, mongoose_1.Schema)()
+    (0, mongoose_1.Schema)({
+        timestamps: true,
+    })
 ], User);
 exports.UserSchema = mongoose_1.SchemaFactory.createForClass(User);
 //# sourceMappingURL=user.schema.js.map

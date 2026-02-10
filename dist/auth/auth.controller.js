@@ -89,6 +89,14 @@ let AuthController = class AuthController {
             profilePicture: imageUrl,
         };
     }
+    async uploadHandicapCard(file, req) {
+        if (!file) {
+            throw new common_1.BadRequestException('Aucun fichier fourni');
+        }
+        console.log('📸 Fichier reçu:', file.filename);
+        console.log('📍 Path:', file.path);
+        return this.authService.uploadAndVerifyHandicapCard(req.userId, file.path);
+    }
 };
 exports.AuthController = AuthController;
 __decorate([
@@ -228,11 +236,14 @@ __decorate([
                 callback(null, `profile-${uniqueSuffix}${(0, path_1.extname)(file.originalname)}`);
             },
         }),
-        fileFilter: (req, file, callback) => {
-            if (!file.mimetype.match(/\/(jpg|jpeg|png|gif)$/)) {
-                return callback(new Error('Only image files are allowed!'), false);
+        fileFilter: (req, file, cb) => {
+            console.log('📄 Mimetype reçu:', file.mimetype);
+            console.log('📄 Original name:', file.originalname);
+            if (!file.mimetype.startsWith('image/') &&
+                file.mimetype !== 'application/octet-stream') {
+                return cb(new common_1.BadRequestException('Seules les images sont acceptées!'), false);
             }
-            callback(null, true);
+            cb(null, true);
         },
         limits: { fileSize: 5 * 1024 * 1024 },
     })),
@@ -243,6 +254,59 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "uploadProfilePicture", null);
+__decorate([
+    (0, common_1.UseGuards)(authentication_guard_1.AuthenticationGuard),
+    (0, common_1.Post)('profile/upload-handicap-card'),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, common_2.UseInterceptors)((0, platform_express_1.FileInterceptor)('file', {
+        storage: (0, multer_1.diskStorage)({
+            destination: './uploads/handicap-cards',
+            filename: (req, file, callback) => {
+                const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+                callback(null, `handicap-${uniqueSuffix}${(0, path_1.extname)(file.originalname)}`);
+            },
+        }),
+        fileFilter: (req, file, cb) => {
+            console.log('📄 [HANDICAP] Mimetype reçu:', file.mimetype);
+            console.log('📄 [HANDICAP] Original name:', file.originalname);
+            if (!file.mimetype.startsWith('image/') &&
+                file.mimetype !== 'application/octet-stream') {
+                return cb(new common_1.BadRequestException('Seules les images sont acceptées!'), false);
+            }
+            cb(null, true);
+        },
+        limits: {
+            fileSize: 10 * 1024 * 1024,
+        },
+    })),
+    (0, swagger_1.ApiOperation)({ summary: 'Upload et vérification de la carte d\'handicap' }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: 'Carte vérifiée avec succès',
+        schema: {
+            example: {
+                success: true,
+                message: 'Carte d\'handicap vérifiée avec succès',
+                isVerified: true,
+                confidence: 95,
+                carteHandicape: '/uploads/handicap-cards/handicap-123456.jpg',
+                extractedData: {
+                    fullName: 'Ahmed Ben Ali',
+                    cardNumber: 'TN-2024-12345',
+                    disabilityType: 'Moteur',
+                    expiryDate: '2026-12-31'
+                }
+            }
+        }
+    }),
+    (0, swagger_1.ApiResponse)({ status: 400, description: 'Carte invalide ou non conforme' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Non authentifié' }),
+    __param(0, (0, common_2.UploadedFile)()),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "uploadHandicapCard", null);
 exports.AuthController = AuthController = __decorate([
     (0, swagger_1.ApiTags)('Authentication'),
     (0, common_1.Controller)('auth'),
