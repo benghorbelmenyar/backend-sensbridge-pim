@@ -1,0 +1,9 @@
+### Test de traduction LSF
+POST http://127.0.0.1:8000/api/v1/translate
+Content-Type: application/json
+
+{
+  "text": "Bonjour, comment allez-vous ?",
+  "target_lang": "LSF"
+}
+
