@@ -9,10 +9,14 @@ import { ResetPasswordDto } from './dtos/reset-password.dto';
 import { VerifyOtpDto } from './dtos/verify-otp.dto';
 import { GoogleTokenDto } from './dtos/google-token.dto';
 import { UpdateProfileDto } from './dtos/update-profile.dto';
+import { RegisterDeviceDto } from './dtos/register-device.dto';
 export declare class AuthController {
     private readonly authService;
     constructor(authService: AuthService);
     signUp(signupData: SignupDto): Promise<{
+        success: boolean;
+        requiresApproval: boolean;
+        message: string;
         user: {
             id: import("mongoose").Types.ObjectId;
             name: string;
@@ -20,10 +24,8 @@ export declare class AuthController {
             phone: string | undefined;
             userType: string | undefined;
             language: string | undefined;
-            carteHandicape: string | undefined;
+            approvalStatus: string;
         };
-        accessToken: string;
-        refreshToken: string;
     }>;
     login(credentials: LoginDto): Promise<{
         user: {
@@ -99,6 +101,14 @@ export declare class AuthController {
             authProvider: string | undefined;
             isEmailVerified: boolean | undefined;
         };
+    }>;
+    registerDevice(dto: RegisterDeviceDto, req: any): Promise<{
+        device: import("../admin/schemas/device.schema").Device & Required<{
+            _id: import("mongoose").Types.ObjectId;
+        }> & {
+            __v: number;
+        };
+        message: string;
     }>;
     uploadProfilePicture(file: Express.Multer.File, req: any): Promise<{
         success: boolean;

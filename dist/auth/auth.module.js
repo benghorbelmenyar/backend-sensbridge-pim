@@ -17,6 +17,7 @@ const user_schema_1 = require("./schemas/user.schema");
 const ocr_service_1 = require("../services/ocr.service");
 const refresh_token_schema_1 = require("./schemas/refresh-token.schema");
 const reset_token_schema_1 = require("./schemas/reset-token.schema");
+const device_schema_1 = require("../admin/schemas/device.schema");
 const mail_service_1 = require("../services/mail.service");
 const roles_module_1 = require("../roles/roles.module");
 const google_strategy_1 = require("./strategies/google.strategy");
@@ -29,18 +30,10 @@ exports.AuthModule = AuthModule = __decorate([
             config_1.ConfigModule,
             roles_module_1.RolesModule,
             mongoose_1.MongooseModule.forFeature([
-                {
-                    name: user_schema_1.User.name,
-                    schema: user_schema_1.UserSchema,
-                },
-                {
-                    name: refresh_token_schema_1.RefreshToken.name,
-                    schema: refresh_token_schema_1.RefreshTokenSchema,
-                },
-                {
-                    name: reset_token_schema_1.ResetToken.name,
-                    schema: reset_token_schema_1.ResetTokenSchema,
-                },
+                { name: user_schema_1.User.name, schema: user_schema_1.UserSchema },
+                { name: refresh_token_schema_1.RefreshToken.name, schema: refresh_token_schema_1.RefreshTokenSchema },
+                { name: reset_token_schema_1.ResetToken.name, schema: reset_token_schema_1.ResetTokenSchema },
+                { name: device_schema_1.Device.name, schema: device_schema_1.DeviceSchema },
             ]),
             jwt_1.JwtModule.registerAsync({
                 imports: [config_1.ConfigModule],

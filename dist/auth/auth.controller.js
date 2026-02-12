@@ -27,6 +27,7 @@ const verify_otp_dto_1 = require("./dtos/verify-otp.dto");
 const google_auth_guard_1 = require("../guards/google-auth.guard");
 const google_token_dto_1 = require("./dtos/google-token.dto");
 const update_profile_dto_1 = require("./dtos/update-profile.dto");
+const register_device_dto_1 = require("./dtos/register-device.dto");
 const platform_express_1 = require("@nestjs/platform-express");
 const common_2 = require("@nestjs/common");
 const multer_1 = require("multer");
@@ -77,6 +78,9 @@ let AuthController = class AuthController {
     }
     async getProfile(req) {
         return this.authService.getProfile(req.userId);
+    }
+    async registerDevice(dto, req) {
+        return this.authService.registerDevice(req.userId, dto);
     }
     async uploadProfilePicture(file, req) {
         const imageUrl = `/uploads/profiles/${file.filename}`;
@@ -224,6 +228,19 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "getProfile", null);
+__decorate([
+    (0, common_1.UseGuards)(authentication_guard_1.AuthenticationGuard),
+    (0, common_1.Post)('device'),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOperation)({ summary: 'Enregistrer le device de l\'utilisateur (app mobile)' }),
+    (0, swagger_1.ApiResponse)({ status: 201, description: 'Device enregistré' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Non authentifié' }),
+    __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Req)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [register_device_dto_1.RegisterDeviceDto, Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "registerDevice", null);
 __decorate([
     (0, common_1.UseGuards)(authentication_guard_1.AuthenticationGuard),
     (0, common_1.Post)('profile/upload-picture'),

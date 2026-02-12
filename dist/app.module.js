@@ -13,6 +13,8 @@ const mongoose_1 = require("@nestjs/mongoose");
 const app_controller_1 = require("./app.controller");
 const app_service_1 = require("./app.service");
 const auth_module_1 = require("./auth/auth.module");
+const admin_module_1 = require("./admin/admin.module");
+const baby_cry_module_1 = require("./baby-cry/baby-cry.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -24,6 +26,8 @@ exports.AppModule = AppModule = __decorate([
             }),
             mongoose_1.MongooseModule.forRoot(process.env.MONGODB_URI || 'mongodb://localhost:27017/sensbridge'),
             auth_module_1.AuthModule,
+            admin_module_1.AdminModule,
+            baby_cry_module_1.BabyCryModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],

@@ -13,6 +13,7 @@ import { VerifyOtpDto } from './dtos/verify-otp.dto';
 import { GoogleAuthGuard } from 'src/guards/google-auth.guard';
 import { GoogleTokenDto } from './dtos/google-token.dto';
 import { UpdateProfileDto } from './dtos/update-profile.dto';
+import { RegisterDeviceDto } from './dtos/register-device.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UploadedFile, UseInterceptors } from '@nestjs/common';
 import { diskStorage } from 'multer';
@@ -144,7 +145,17 @@ async updateProfile(
 async getProfile(@Req() req) {
   return this.authService.getProfile(req.userId);
 }
-// Dans AuthController
+
+@UseGuards(AuthenticationGuard)
+@Post('device')
+@ApiBearerAuth()
+@ApiOperation({ summary: 'Enregistrer le device de l\'utilisateur (app mobile)' })
+@ApiResponse({ status: 201, description: 'Device enregistré' })
+@ApiResponse({ status: 401, description: 'Non authentifié' })
+async registerDevice(@Body() dto: RegisterDeviceDto, @Req() req) {
+  return this.authService.registerDevice(req.userId, dto);
+}
+
 @UseGuards(AuthenticationGuard)
 @Post('profile/upload-picture')
 @ApiBearerAuth()

@@ -3,7 +3,9 @@ import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { AuthModule } from './auth/auth.module'; // ← AJOUTER
+import { AuthModule } from './auth/auth.module';
+import { AdminModule } from './admin/admin.module';
+import { BabyCryModule } from './baby-cry/baby-cry.module';
 
 @Module({
   imports: [
@@ -17,8 +19,9 @@ import { AuthModule } from './auth/auth.module'; // ← AJOUTER
       process.env.MONGODB_URI || 'mongodb://localhost:27017/sensbridge'
     ),
     
-    // AuthModule
-    AuthModule, // ← TRÈS IMPORTANT !
+    AuthModule,
+    AdminModule,
+    BabyCryModule,
   ],
   controllers: [AppController],
   providers: [AppService],

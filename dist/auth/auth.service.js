@@ -62,19 +62,22 @@ const roles_service_1 = require("../roles/roles.service");
 const google_auth_library_1 = require("google-auth-library");
 const path = __importStar(require("path"));
 const ocr_service_1 = require("../services/ocr.service");
+const device_schema_1 = require("../admin/schemas/device.schema");
 let AuthService = class AuthService {
     UserModel;
     RefreshTokenModel;
     ResetTokenModel;
+    deviceModel;
     jwtService;
     configService;
     mailService;
     rolesService;
     googleClient;
-    constructor(UserModel, RefreshTokenModel, ResetTokenModel, jwtService, configService, mailService, rolesService) {
+    constructor(UserModel, RefreshTokenModel, ResetTokenModel, deviceModel, jwtService, configService, mailService, rolesService) {
         this.UserModel = UserModel;
         this.RefreshTokenModel = RefreshTokenModel;
         this.ResetTokenModel = ResetTokenModel;
+        this.deviceModel = deviceModel;
         this.jwtService = jwtService;
         this.configService = configService;
         this.mailService = mailService;
@@ -105,11 +108,13 @@ let AuthService = class AuthService {
             userType: userType || 'USER',
             language: language || undefined,
             carteHandicape: carteHandicape || undefined,
+            approvalStatus: 'pending',
         });
-        console.log('✅ User créé avec succès:', user._id);
-        const tokens = await this.generateUserTokens(user._id);
+        console.log('✅ User créé avec succès (en attente d\'approbation):', user._id);
         return {
-            ...tokens,
+            success: true,
+            requiresApproval: true,
+            message: 'Votre inscription a été enregistrée. Un administrateur doit valider votre compte avant que vous puissiez vous connecter.',
             user: {
                 id: user._id,
                 name: user.name,
@@ -117,7 +122,7 @@ let AuthService = class AuthService {
                 phone: user.phone,
                 userType: user.userType,
                 language: user.language,
-                carteHandicape: user.carteHandicape,
+                approvalStatus: 'pending',
             },
         };
     }
@@ -130,6 +135,18 @@ let AuthService = class AuthService {
         const passwordMatch = await bcrypt.compare(password, user.password);
         if (!passwordMatch) {
             throw new common_1.UnauthorizedException('Wrong credentials');
+        }
+        const status = user.approvalStatus ?? 'approved';
+        if (status === 'pending') {
+            throw new common_1.ForbiddenException("Votre compte est en attente de validation par l'administrateur. Vous serez notifié dès qu'il aura été validé.");
+        }
+        if (status === 'rejected') {
+            const msg = user.rejectionReason ||
+                "Votre compte a été refusé par l'administrateur. Contactez le support pour plus d'informations.";
+            throw new common_1.ForbiddenException({ message: msg, rejectionReason: user.rejectionReason });
+        }
+        if (user.isActive === false) {
+            throw new common_1.ForbiddenException("Votre compte a été désactivé par l'administrateur. Contactez le support.");
         }
         const tokens = await this.generateUserTokens(user._id);
         return {
@@ -317,6 +334,7 @@ let AuthService = class AuthService {
                 profilePicture: profile.photos?.[0]?.value,
                 isEmailVerified: true,
                 authProvider: 'google',
+                approvalStatus: 'pending',
             });
         }
         return user;
@@ -343,6 +361,18 @@ let AuthService = class AuthService {
                     user.authProvider = 'google';
                     await user.save();
                 }
+                const status = user.approvalStatus ?? 'approved';
+                if (status === 'pending') {
+                    throw new common_1.ForbiddenException("Votre compte est en attente de validation par l'administrateur.");
+                }
+                if (status === 'rejected') {
+                    const msg = user.rejectionReason ||
+                        "Votre compte a été refusé par l'administrateur.";
+                    throw new common_1.ForbiddenException({ message: msg, rejectionReason: user.rejectionReason });
+                }
+                if (user.isActive === false) {
+                    throw new common_1.ForbiddenException("Votre compte a été désactivé par l'administrateur. Contactez le support.");
+                }
             }
             else {
                 user = await this.UserModel.create({
@@ -353,7 +383,9 @@ let AuthService = class AuthService {
                     profilePicture: payload.picture,
                     isEmailVerified: true,
                     authProvider: 'google',
+                    approvalStatus: 'pending',
                 });
+                throw new common_1.ForbiddenException("Votre inscription a été enregistrée. Un administrateur doit valider votre compte avant connexion.");
             }
             return this.generateTokensForUser(user);
         }
@@ -493,6 +525,167 @@ let AuthService = class AuthService {
             extractedData: analysisResult.extractedData,
         };
     }
+    async getPendingUsers() {
+        const users = await this.UserModel.find({ approvalStatus: 'pending' })
+            .select('-password')
+            .sort({ createdAt: -1 })
+            .lean();
+        return { data: users };
+    }
+    async approveUser(userId, adminId) {
+        const user = await this.UserModel.findByIdAndUpdate(userId, {
+            approvalStatus: 'approved',
+            approvedAt: new Date(),
+            approvedBy: adminId,
+        }, { new: true })
+            .select('email name')
+            .lean();
+        if (!user) {
+            throw new common_1.NotFoundException('Utilisateur non trouvé');
+        }
+        const email = user.email;
+        const name = user.name;
+        try {
+            await this.mailService.sendApprovalAcceptanceEmail(email, name);
+        }
+        catch (err) {
+            console.error('Envoi email acceptation échoué (compte tout de même accepté):', err);
+        }
+        return {
+            message: 'Utilisateur accepté',
+            user: { id: user._id, email, approvalStatus: 'approved' },
+        };
+    }
+    async rejectUser(userId, adminId, reason) {
+        const user = await this.UserModel.findByIdAndUpdate(userId, {
+            approvalStatus: 'rejected',
+            approvedAt: new Date(),
+            approvedBy: adminId,
+            ...(reason != null && reason.trim() !== '' && { rejectionReason: reason.trim() }),
+        }, { new: true });
+        if (!user) {
+            throw new common_1.NotFoundException('Utilisateur non trouvé');
+        }
+        return {
+            message: 'Utilisateur refusé',
+            user: { id: user._id, email: user.email, approvalStatus: user.approvalStatus, rejectionReason: user.rejectionReason },
+        };
+    }
+    async getPendingCount() {
+        return this.UserModel.countDocuments({ approvalStatus: 'pending' });
+    }
+    async getAppUsersStatsByType() {
+        try {
+            const byUserType = await this.UserModel.aggregate([
+                {
+                    $group: {
+                        _id: {
+                            $cond: [
+                                { $in: ['$userType', ['USER', 'NORMAL_PERSON', null, '']] },
+                                'NORMAL_PERSON',
+                                { $ifNull: ['$userType', 'NON_RENSEIGNÉ'] },
+                            ],
+                        },
+                        count: { $sum: 1 },
+                    },
+                },
+            ]);
+            const total = await this.UserModel.countDocuments();
+            const byUserTypeMap = {};
+            byUserType.forEach((row) => {
+                const key = row._id != null ? String(row._id) : 'NON_RENSEIGNÉ';
+                byUserTypeMap[key] = row.count ?? 0;
+            });
+            return { total, byUserType: byUserTypeMap };
+        }
+        catch (err) {
+            console.error('getAppUsersStatsByType error:', err);
+            return { total: 0, byUserType: {} };
+        }
+    }
+    async getAppUsers(params) {
+        const { skip = 0, limit = 20, search } = params;
+        const filter = {};
+        if (search && search.trim()) {
+            filter.$or = [
+                { name: { $regex: search.trim(), $options: 'i' } },
+                { email: { $regex: search.trim(), $options: 'i' } },
+            ];
+        }
+        const total = await this.UserModel.countDocuments(filter);
+        const users = await this.UserModel.find(filter)
+            .select('-password')
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(limit)
+            .lean();
+        return {
+            data: users,
+            total,
+            page: Math.floor(skip / limit) + 1,
+            totalPages: Math.ceil(total / limit),
+        };
+    }
+    async blockUser(userId) {
+        const user = await this.UserModel.findByIdAndUpdate(userId, { isActive: false }, { new: true });
+        if (!user)
+            throw new common_1.NotFoundException('Utilisateur non trouvé');
+        return { message: 'Utilisateur bloqué', user: { id: user._id, email: user.email, isActive: user.isActive } };
+    }
+    async unblockUser(userId) {
+        const user = await this.UserModel.findByIdAndUpdate(userId, { isActive: true }, { new: true });
+        if (!user)
+            throw new common_1.NotFoundException('Utilisateur non trouvé');
+        return { message: 'Utilisateur débloqué', user: { id: user._id, email: user.email, isActive: user.isActive } };
+    }
+    async getOneAppUser(userId) {
+        const user = await this.UserModel.findById(userId).select('-password').lean();
+        if (!user)
+            throw new common_1.NotFoundException('Utilisateur non trouvé');
+        return user;
+    }
+    async updateAppUser(userId, dto) {
+        const update = {};
+        if (dto.name != null)
+            update.name = dto.name;
+        if (dto.email != null)
+            update.email = dto.email;
+        if (dto.phone != null)
+            update.phone = dto.phone;
+        if (dto.userType != null)
+            update.userType = dto.userType;
+        if (dto.language != null)
+            update.language = dto.language;
+        if (dto.carteHandicape != null)
+            update.carteHandicape = dto.carteHandicape;
+        if (dto.profilePicture != null)
+            update.profilePicture = dto.profilePicture;
+        const user = await this.UserModel.findByIdAndUpdate(userId, update, { new: true })
+            .select('-password')
+            .lean();
+        if (!user)
+            throw new common_1.NotFoundException('Utilisateur non trouvé');
+        return user;
+    }
+    async deleteAppUser(userId) {
+        const user = await this.UserModel.findByIdAndDelete(userId);
+        if (!user)
+            throw new common_1.NotFoundException('Utilisateur non trouvé');
+        return { message: 'Utilisateur supprimé avec succès' };
+    }
+    async registerDevice(userId, dto) {
+        const now = new Date();
+        const device = await this.deviceModel.findOneAndUpdate({ deviceId: dto.deviceId }, {
+            deviceId: dto.deviceId,
+            userId,
+            type: dto.type,
+            ...(dto.name != null && { name: dto.name }),
+            ...(dto.os != null && { os: dto.os }),
+            lastSync: now,
+            isConnected: true,
+        }, { new: true, upsert: true });
+        return { device: device.toObject(), message: 'Device enregistré' };
+    }
 };
 exports.AuthService = AuthService;
 exports.AuthService = AuthService = __decorate([
@@ -500,7 +693,9 @@ exports.AuthService = AuthService = __decorate([
     __param(0, (0, mongoose_1.InjectModel)(user_schema_1.User.name)),
     __param(1, (0, mongoose_1.InjectModel)(refresh_token_schema_1.RefreshToken.name)),
     __param(2, (0, mongoose_1.InjectModel)(reset_token_schema_1.ResetToken.name)),
+    __param(3, (0, mongoose_1.InjectModel)(device_schema_1.Device.name)),
     __metadata("design:paramtypes", [mongoose_2.Model,
+        mongoose_2.Model,
         mongoose_2.Model,
         mongoose_2.Model,
         jwt_1.JwtService,

@@ -12,28 +12,20 @@ import {
   RefreshTokenSchema,
 } from './schemas/refresh-token.schema';
 import { ResetToken, ResetTokenSchema } from './schemas/reset-token.schema';
+import { Device, DeviceSchema } from '../admin/schemas/device.schema';
 import { MailService } from 'src/services/mail.service';
 import { RolesModule } from 'src/roles/roles.module';
 import { GoogleStrategy } from './strategies/google.strategy';
 
-
 @Module({
   imports: [
-    ConfigModule, // ← AJOUTER pour accéder aux variables d'environnement
+    ConfigModule,
     RolesModule,
     MongooseModule.forFeature([
-      {
-        name: User.name,
-        schema: UserSchema,
-      },
-      {
-        name: RefreshToken.name,
-        schema: RefreshTokenSchema,
-      },
-      {
-        name: ResetToken.name,
-        schema: ResetTokenSchema,
-      },
+      { name: User.name, schema: UserSchema },
+      { name: RefreshToken.name, schema: RefreshTokenSchema },
+      { name: ResetToken.name, schema: ResetTokenSchema },
+      { name: Device.name, schema: DeviceSchema },
     ]),
     // ← AJOUTER JwtModule
     JwtModule.registerAsync({

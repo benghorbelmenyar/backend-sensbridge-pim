@@ -9,17 +9,23 @@ import { ResetToken } from './schemas/reset-token.schema';
 import { MailService } from 'src/services/mail.service';
 import { RolesService } from 'src/roles/roles.service';
 import { UpdateProfileDto } from './dtos/update-profile.dto';
+import { Device } from '../admin/schemas/device.schema';
+import { RegisterDeviceDto } from './dtos/register-device.dto';
 export declare class AuthService {
     private UserModel;
     private RefreshTokenModel;
     private ResetTokenModel;
+    private deviceModel;
     private jwtService;
     private configService;
     private mailService;
     private rolesService;
     private googleClient;
-    constructor(UserModel: Model<User>, RefreshTokenModel: Model<RefreshToken>, ResetTokenModel: Model<ResetToken>, jwtService: JwtService, configService: ConfigService, mailService: MailService, rolesService: RolesService);
+    constructor(UserModel: Model<User>, RefreshTokenModel: Model<RefreshToken>, ResetTokenModel: Model<ResetToken>, deviceModel: Model<Device>, jwtService: JwtService, configService: ConfigService, mailService: MailService, rolesService: RolesService);
     signup(signupData: SignupDto): Promise<{
+        success: boolean;
+        requiresApproval: boolean;
+        message: string;
         user: {
             id: mongoose.Types.ObjectId;
             name: string;
@@ -27,10 +33,8 @@ export declare class AuthService {
             phone: string | undefined;
             userType: string | undefined;
             language: string | undefined;
-            carteHandicape: string | undefined;
+            approvalStatus: string;
         };
-        accessToken: string;
-        refreshToken: string;
     }>;
     login(credentials: LoginDto): Promise<{
         user: {
@@ -134,5 +138,85 @@ export declare class AuthService {
             expiryDate?: string;
             disabilityType?: string;
         };
+    }>;
+    getPendingUsers(): Promise<{
+        data: (User & Required<{
+            _id: mongoose.Types.ObjectId;
+        }> & {
+            __v: number;
+        })[];
+    }>;
+    approveUser(userId: string, adminId?: string): Promise<{
+        message: string;
+        user: {
+            id: any;
+            email: any;
+            approvalStatus: string;
+        };
+    }>;
+    rejectUser(userId: string, adminId?: string, reason?: string): Promise<{
+        message: string;
+        user: {
+            id: mongoose.Types.ObjectId;
+            email: string;
+            approvalStatus: "pending" | "approved" | "rejected" | undefined;
+            rejectionReason: any;
+        };
+    }>;
+    getPendingCount(): Promise<number>;
+    getAppUsersStatsByType(): Promise<{
+        total: number;
+        byUserType: Record<string, number>;
+    }>;
+    getAppUsers(params: {
+        skip?: number;
+        limit?: number;
+        search?: string;
+    }): Promise<{
+        data: (User & Required<{
+            _id: mongoose.Types.ObjectId;
+        }> & {
+            __v: number;
+        })[];
+        total: number;
+        page: number;
+        totalPages: number;
+    }>;
+    blockUser(userId: string): Promise<{
+        message: string;
+        user: {
+            id: mongoose.Types.ObjectId;
+            email: string;
+            isActive: any;
+        };
+    }>;
+    unblockUser(userId: string): Promise<{
+        message: string;
+        user: {
+            id: mongoose.Types.ObjectId;
+            email: string;
+            isActive: any;
+        };
+    }>;
+    getOneAppUser(userId: string): Promise<User & Required<{
+        _id: mongoose.Types.ObjectId;
+    }> & {
+        __v: number;
+    }>;
+    updateAppUser(userId: string, dto: UpdateProfileDto): Promise<User & Required<{
+        _id: mongoose.Types.ObjectId;
+    }> & {
+        __v: number;
+    }>;
+    deleteAppUser(userId: string): Promise<{
+        message: string;
+    }>;
+    registerDevice(userId: string, dto: RegisterDeviceDto): Promise<{
+        device: Device & Required<{
+            _id: mongoose.Types.ObjectId;
+        }> & {
+            __v: number;
+        };
+        message: string;
     }>;
 }

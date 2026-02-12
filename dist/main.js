@@ -16,14 +16,21 @@ async function bootstrap() {
         forbidNonWhitelisted: true,
     }));
     const config = new swagger_1.DocumentBuilder()
-        .setTitle('Auth API')
-        .setDescription('API de test avec Swagger')
+        .setTitle('SenseBridge API')
+        .setDescription('API SenseBridge - Auth, Admin Dashboard, CRUD')
         .setVersion('1.0')
-        .addBearerAuth()
+        .addBearerAuth({
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        description: 'JWT Admin token',
+    }, 'admin-token')
         .build();
     const document = swagger_1.SwaggerModule.createDocument(app, config);
     swagger_1.SwaggerModule.setup('api', app, document);
-    await app.listen(process.env.PORT ?? 4004);
+    const port = process.env.PORT ?? 4004;
+    await app.listen(port, '0.0.0.0');
+    console.log(`[Nest] Application écoute sur http://localhost:${port}`);
 }
 bootstrap();
 //# sourceMappingURL=main.js.map
