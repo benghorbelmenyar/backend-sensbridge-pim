@@ -13,8 +13,8 @@ exports.PREPROCESSING_CONFIG = {
     nMels: 128,
     fMin: 50,
     fMax: 8000,
-    mean: -4.2675,
-    std: 3.8914,
+    mean: -9.684776306152344,
+    std: 7.630349159240723,
 };
 async function decodeWav(buffer) {
     const decode = WavDecoder.decode ?? WavDecoder.default?.decode;

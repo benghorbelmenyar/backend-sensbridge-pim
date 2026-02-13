@@ -14,9 +14,9 @@ export const PREPROCESSING_CONFIG = {
   nMels: 128,
   fMin: 50,
   fMax: 8000,
-  /** À mettre à jour après entraînement (checkpoint dataset_mean / dataset_std). */
-  mean: -4.2675,
-  std: 3.8914,
+  /** Aligné sur ml/models/preprocess_config.json après entraînement Donate-a-Cry. */
+  mean: -9.684776306152344,
+  std: 7.630349159240723,
 } as const;
 
 /**

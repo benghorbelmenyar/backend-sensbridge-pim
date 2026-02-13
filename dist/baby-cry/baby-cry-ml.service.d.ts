@@ -11,6 +11,8 @@ export declare class BabyCryMlService {
     private session;
     private modelLoaded;
     private modelPath;
+    private modelDataPath;
+    private modelsDir;
     constructor();
     loadModel(): Promise<boolean>;
     isLoaded(): boolean;

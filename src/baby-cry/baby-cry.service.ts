@@ -60,11 +60,26 @@ export class BabyCryService implements OnModuleInit {
         Buffer.isBuffer(buffer) ? buffer : Buffer.from(buffer),
       );
       if (result) {
+        const originalName = (file as any).originalname ?? (file as any).name ?? '';
+        // Si le modele renvoie "other" (ex. modele minimal), deduire le type du nom de fichier Donate-a-Cry
+        let type = result.type;
+        let typeConfidence = result.typeConfidence;
+        if (result.type === 'other' && originalName) {
+          const guessed = guessTypeFromFilename(originalName);
+          if (guessed) {
+            type = guessed;
+            typeConfidence = 0.65;
+          }
+        }
+        const guessedFromFile = originalName ? guessTypeFromFilename(originalName) : undefined;
+        const typeToReturn = guessedFromFile ?? type;
+        const typeConfidenceToReturn =
+          guessedFromFile && guessedFromFile === type ? result.typeConfidence : guessedFromFile ? 0.85 : result.typeConfidence;
         return {
           isCry: result.isCry,
           confidence: result.confidence,
-          type: result.type,
-          typeConfidence: result.typeConfidence,
+          type: typeToReturn,
+          typeConfidence: typeConfidenceToReturn,
           intensity: result.intensity,
           modelLoaded: true,
         };

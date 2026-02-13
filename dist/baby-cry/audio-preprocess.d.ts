@@ -6,8 +6,8 @@ export declare const PREPROCESSING_CONFIG: {
     readonly nMels: 128;
     readonly fMin: 50;
     readonly fMax: 8000;
-    readonly mean: -4.2675;
-    readonly std: 3.8914;
+    readonly mean: -9.684776306152344;
+    readonly std: 7.630349159240723;
 };
 export declare function decodeWav(buffer: Buffer): Promise<{
     samples: Float32Array;

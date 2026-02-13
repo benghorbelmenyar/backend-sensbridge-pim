@@ -21,7 +21,7 @@ declare module 'onnxruntime-node' {
 
   export const InferenceSession: {
     create(
-      path: string,
+      pathOrBuffer: string | Buffer | ArrayBuffer | Uint8Array,
       options?: { executionProviders?: string[] },
     ): Promise<InferenceSession>;
   };
