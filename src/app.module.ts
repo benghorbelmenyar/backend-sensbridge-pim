@@ -3,7 +3,10 @@ import { ConfigModule } from '@nestjs/config';
 import { MongooseModule } from '@nestjs/mongoose';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
-import { AuthModule } from './auth/auth.module'; // ← AJOUTER
+import { AuthModule } from './auth/auth.module';
+import { PannsModule } from './panns/panns.module';
+import { AlertsModule } from './alerts/alerts.module';
+import { EmergencyContactsModule } from './emergency-contacts/emergency-contacts.module';
 
 @Module({
   imports: [
@@ -17,8 +20,10 @@ import { AuthModule } from './auth/auth.module'; // ← AJOUTER
       process.env.MONGODB_URI || 'mongodb://localhost:27017/sensbridge'
     ),
     
-    // AuthModule
-    AuthModule, // ← TRÈS IMPORTANT !
+    AuthModule,
+    PannsModule,
+    AlertsModule,
+    EmergencyContactsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

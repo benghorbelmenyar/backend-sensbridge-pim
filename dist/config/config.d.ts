@@ -5,5 +5,8 @@ declare const _default: () => {
     database: {
         connectionString: string | undefined;
     };
+    panns: {
+        baseUrl: string;
+    };
 };
 export default _default;

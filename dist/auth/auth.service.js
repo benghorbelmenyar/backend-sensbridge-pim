@@ -54,14 +54,13 @@ const bcrypt = __importStar(require("bcrypt"));
 const jwt_1 = require("@nestjs/jwt");
 const config_1 = require("@nestjs/config");
 const refresh_token_schema_1 = require("./schemas/refresh-token.schema");
-const uuid_1 = require("uuid");
-const nanoid_1 = require("nanoid");
 const reset_token_schema_1 = require("./schemas/reset-token.schema");
 const mail_service_1 = require("../services/mail.service");
 const roles_service_1 = require("../roles/roles.service");
 const google_auth_library_1 = require("google-auth-library");
 const path = __importStar(require("path"));
 const ocr_service_1 = require("../services/ocr.service");
+const crypto_1 = require("crypto");
 let AuthService = class AuthService {
     UserModel;
     RefreshTokenModel;
@@ -165,7 +164,7 @@ let AuthService = class AuthService {
         if (user) {
             console.log('✅ Utilisateur trouvé:', user.name);
             const otp = Math.floor(100000 + Math.random() * 900000).toString();
-            const resetToken = (0, nanoid_1.nanoid)(64);
+            const resetToken = (0, crypto_1.randomUUID)();
             const expiryDate = new Date();
             expiryDate.setHours(expiryDate.getHours() + 1);
             await this.ResetTokenModel.create({
@@ -268,7 +267,7 @@ let AuthService = class AuthService {
             secret,
             expiresIn: '10h'
         });
-        const refreshToken = (0, uuid_1.v4)();
+        const refreshToken = (0, crypto_1.randomUUID)();
         await this.storeRefreshToken(refreshToken, userId);
         return {
             accessToken,
@@ -373,7 +372,7 @@ let AuthService = class AuthService {
             secret,
             expiresIn: '1h',
         });
-        const refreshTokenString = (0, uuid_1.v4)();
+        const refreshTokenString = (0, crypto_1.randomUUID)();
         await this.storeRefreshToken(refreshTokenString, user._id.toString());
         return {
             success: true,

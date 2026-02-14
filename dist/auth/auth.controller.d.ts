@@ -23,7 +23,7 @@ export declare class AuthController {
             carteHandicape: string | undefined;
         };
         accessToken: string;
-        refreshToken: string;
+        refreshToken: `${string}-${string}-${string}-${string}-${string}`;
     }>;
     login(credentials: LoginDto): Promise<{
         user: {
@@ -35,11 +35,11 @@ export declare class AuthController {
             language: string | undefined;
         };
         accessToken: string;
-        refreshToken: string;
+        refreshToken: `${string}-${string}-${string}-${string}-${string}`;
     }>;
     refreshTokens(refreshTokenDto: RefreshTokenDto): Promise<{
         accessToken: string;
-        refreshToken: string;
+        refreshToken: `${string}-${string}-${string}-${string}-${string}`;
     }>;
     changePassword(changePasswordDto: ChangePasswordDto, req: any): Promise<{
         message: string;
@@ -63,7 +63,7 @@ export declare class AuthController {
         success: boolean;
         message: string;
         accessToken: string;
-        refreshToken: string;
+        refreshToken: `${string}-${string}-${string}-${string}-${string}`;
         user: {
             id: import("mongoose").Types.ObjectId;
             name: string;

@@ -15,8 +15,6 @@ import { LoginDto } from './dtos/login.dto';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { RefreshToken } from './schemas/refresh-token.schema';
-import { v4 as uuidv4 } from 'uuid';
-import { nanoid } from 'nanoid';
 import { ResetToken } from './schemas/reset-token.schema';
 import { MailService } from 'src/services/mail.service';
 import { RolesService } from 'src/roles/roles.service';
@@ -24,6 +22,7 @@ import { OAuth2Client } from 'google-auth-library';
 import { UpdateProfileDto } from './dtos/update-profile.dto';
 import * as path from 'path';
 import { OcrService } from 'src/services/ocr.service';
+import { randomUUID } from 'crypto';
 
 @Injectable()
 export class AuthService {
@@ -144,11 +143,11 @@ export class AuthService {
     
     const user = await this.UserModel.findOne({ email });
 
-    if (user) {
+      if (user) {
       console.log('✅ Utilisateur trouvé:', user.name);
       
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
-      const resetToken = nanoid(64);
+      const resetToken = randomUUID();
       
       const expiryDate = new Date();
       expiryDate.setHours(expiryDate.getHours() + 1);
@@ -277,8 +276,8 @@ export class AuthService {
       }
     );
     
-    const refreshToken = uuidv4();
-
+    const refreshToken = randomUUID();
+    
     await this.storeRefreshToken(refreshToken, userId);
     return {
       accessToken,
@@ -416,7 +415,7 @@ export class AuthService {
       expiresIn: '1h',
     });
 
-    const refreshTokenString = uuidv4();
+    const refreshTokenString = randomUUID();
     await this.storeRefreshToken(refreshTokenString, user._id.toString());
 
     return {

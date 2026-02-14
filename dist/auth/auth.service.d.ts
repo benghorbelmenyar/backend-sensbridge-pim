@@ -30,7 +30,7 @@ export declare class AuthService {
             carteHandicape: string | undefined;
         };
         accessToken: string;
-        refreshToken: string;
+        refreshToken: `${string}-${string}-${string}-${string}-${string}`;
     }>;
     login(credentials: LoginDto): Promise<{
         user: {
@@ -42,7 +42,7 @@ export declare class AuthService {
             language: string | undefined;
         };
         accessToken: string;
-        refreshToken: string;
+        refreshToken: `${string}-${string}-${string}-${string}-${string}`;
     }>;
     changePassword(userId: any, oldPassword: string, newPassword: string): Promise<{
         message: string;
@@ -62,11 +62,11 @@ export declare class AuthService {
     }>;
     refreshTokens(refreshToken: string): Promise<{
         accessToken: string;
-        refreshToken: string;
+        refreshToken: `${string}-${string}-${string}-${string}-${string}`;
     }>;
     generateUserTokens(userId: any): Promise<{
         accessToken: string;
-        refreshToken: string;
+        refreshToken: `${string}-${string}-${string}-${string}-${string}`;
     }>;
     storeRefreshToken(token: string, userId: string): Promise<void>;
     getUserPermissions(userId: string): Promise<{
@@ -84,7 +84,7 @@ export declare class AuthService {
         success: boolean;
         message: string;
         accessToken: string;
-        refreshToken: string;
+        refreshToken: `${string}-${string}-${string}-${string}-${string}`;
         user: {
             id: mongoose.Types.ObjectId;
             name: string;
