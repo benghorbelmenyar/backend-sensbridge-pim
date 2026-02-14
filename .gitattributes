@@ -1,1 +1,2 @@
+*.pth filter=lfs diff=lfs merge=lfs -text
 backend_sensbridge_panns/models/Cnn14_mAP=0.431.pth filter=lfs diff=lfs merge=lfs -text
