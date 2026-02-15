@@ -16,6 +16,8 @@ const auth_module_1 = require("./auth/auth.module");
 const panns_module_1 = require("./panns/panns.module");
 const alerts_module_1 = require("./alerts/alerts.module");
 const emergency_contacts_module_1 = require("./emergency-contacts/emergency-contacts.module");
+const speech_module_1 = require("./speech/speech.module");
+const notifications_module_1 = require("./notifications/notifications.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -25,11 +27,13 @@ exports.AppModule = AppModule = __decorate([
             config_1.ConfigModule.forRoot({
                 isGlobal: true,
             }),
-            mongoose_1.MongooseModule.forRoot(process.env.MONGODB_URI || 'mongodb://localhost:27017/sensbridge'),
+            mongoose_1.MongooseModule.forRoot(process.env.MONGODB_URI || process.env.MONGO_URL || 'mongodb://localhost:27017/sensbridge'),
             auth_module_1.AuthModule,
             panns_module_1.PannsModule,
             alerts_module_1.AlertsModule,
             emergency_contacts_module_1.EmergencyContactsModule,
+            speech_module_1.SpeechModule,
+            notifications_module_1.NotificationsModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],

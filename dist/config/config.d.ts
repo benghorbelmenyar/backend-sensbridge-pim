@@ -8,5 +8,8 @@ declare const _default: () => {
     panns: {
         baseUrl: string;
     };
+    whisper: {
+        serviceUrl: string;
+    };
 };
 export default _default;

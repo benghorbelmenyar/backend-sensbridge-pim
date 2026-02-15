@@ -28,6 +28,9 @@ let User = class User extends mongoose_2.Document {
     isHandicapVerified;
     handicapVerifiedAt;
     handicapData;
+    fcmToken;
+    fcmUpdatedAt;
+    notificationEnabled;
 };
 exports.User = User;
 __decorate([
@@ -90,6 +93,18 @@ __decorate([
     (0, mongoose_1.Prop)({ type: Object }),
     __metadata("design:type", Object)
 ], User.prototype, "handicapData", void 0);
+__decorate([
+    (0, mongoose_1.Prop)(),
+    __metadata("design:type", String)
+], User.prototype, "fcmToken", void 0);
+__decorate([
+    (0, mongoose_1.Prop)(),
+    __metadata("design:type", Date)
+], User.prototype, "fcmUpdatedAt", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ default: true }),
+    __metadata("design:type", Boolean)
+], User.prototype, "notificationEnabled", void 0);
 exports.User = User = __decorate([
     (0, mongoose_1.Schema)({
         timestamps: true,

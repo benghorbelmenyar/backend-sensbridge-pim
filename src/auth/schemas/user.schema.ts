@@ -56,6 +56,16 @@ export class User extends Document {
     disabilityType?: string;
     expiryDate?: string;
   };
+
+  /** FCM token for push notifications (backend-driven) */
+  @Prop()
+  fcmToken?: string;
+
+  @Prop()
+  fcmUpdatedAt?: Date;
+
+  @Prop({ default: true })
+  notificationEnabled?: boolean;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

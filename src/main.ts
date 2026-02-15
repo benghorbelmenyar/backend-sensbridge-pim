@@ -92,7 +92,7 @@ async function bootstrap() {
   // Combined Swagger UI (Nest + gloss + PANNs) at /api
   SwaggerModule.setup('api', app, combinedDocument);
 
-  await app.listen(process.env.PORT ?? 4004);
+  await app.listen(process.env.PORT ?? 3000);
 }
 
 bootstrap();
