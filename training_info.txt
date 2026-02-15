@@ -1,0 +1,4 @@
+Training completed: 2026-02-14 20:07:19
+Duration: 19.14 hours
+Test BLEU: 86.17
+GPU: NVIDIA GeForce RTX 3060
