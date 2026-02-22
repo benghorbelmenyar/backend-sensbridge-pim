@@ -40,6 +40,7 @@ export class AuthenticationGuard implements CanActivate {
       Logger.log(`Payload: ${JSON.stringify(payload)}`); // ← DEBUG
       
       request.userId = payload.userId;
+      request.user = payload; // ✅ Expose le payload complet (userId, role) pour AdminGuard
       return true;
     } catch (e) {
       Logger.error(`Erreur de vérification: ${e.message}`);

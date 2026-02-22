@@ -33,6 +33,7 @@ let AuthenticationGuard = class AuthenticationGuard {
             const payload = this.jwtService.verify(token, { secret });
             common_1.Logger.log(`Payload: ${JSON.stringify(payload)}`);
             request.userId = payload.userId;
+            request.user = payload;
             return true;
         }
         catch (e) {
