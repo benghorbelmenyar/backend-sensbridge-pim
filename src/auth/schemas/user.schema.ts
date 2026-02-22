@@ -1,7 +1,7 @@
-// src/auth/schemas/user.schema.ts - AJOUTER CES CHAMPS À VOTRE SCHÉMA
-
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
 import { Document } from 'mongoose';
+
+export type UserRole = 'USER' | 'ORGANIZATION' | 'DEAF_PERSON' | 'NORMAL_PERSON' | 'ADMIN';
 
 @Schema({
   timestamps: true,
@@ -21,6 +21,14 @@ export class User extends Document {
 
   @Prop()
   userType?: string;
+
+  // ✅ NOUVEAU: Champ role pour distinguer ADMIN / USER
+  @Prop({ 
+    type: String, 
+    enum: ['USER', 'ORGANIZATION', 'DEAF_PERSON', 'NORMAL_PERSON', 'ADMIN'],
+    default: 'USER' 
+  })
+  role?: UserRole;
 
   @Prop()
   language?: string;
@@ -43,7 +51,7 @@ export class User extends Document {
   @Prop()
   roleId?: string;
 
-  // ✅ NOUVEAUX CHAMPS POUR LA VÉRIFICATION HANDICAP
+  // ✅ Champs vérification handicap
   @Prop({ default: false })
   isHandicapVerified?: boolean;
 

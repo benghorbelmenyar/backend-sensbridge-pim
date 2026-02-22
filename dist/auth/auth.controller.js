@@ -31,6 +31,7 @@ const platform_express_1 = require("@nestjs/platform-express");
 const common_2 = require("@nestjs/common");
 const multer_1 = require("multer");
 const path_1 = require("path");
+const admin_guard_1 = require("../guards/admin.guard");
 let AuthController = class AuthController {
     authService;
     constructor(authService) {
@@ -45,9 +46,6 @@ let AuthController = class AuthController {
     async refreshTokens(refreshTokenDto) {
         return this.authService.refreshTokens(refreshTokenDto.refreshToken);
     }
-    async changePassword(changePasswordDto, req) {
-        return this.authService.changePassword(req.userId, changePasswordDto.oldPassword, changePasswordDto.newPassword);
-    }
     async forgotPassword(forgotPasswordDto) {
         return this.authService.forgotPassword(forgotPasswordDto.email);
     }
@@ -57,20 +55,8 @@ let AuthController = class AuthController {
     async resetPassword(resetPasswordDto) {
         return this.authService.resetPassword(resetPasswordDto.newPassword, resetPasswordDto.resetToken);
     }
-    async googleAuth() {
-    }
-    async googleAuthCallback(req, res) {
-        try {
-            const tokens = await this.authService['generateTokensForUser'](req.user);
-            return res.redirect(`myapp://auth/google?accessToken=${tokens.accessToken}&refreshToken=${tokens.refreshToken}&user=${encodeURIComponent(JSON.stringify(tokens.user))}`);
-        }
-        catch (error) {
-            console.error('Error in callback:', error);
-            return res.redirect('/login?error=auth_failed');
-        }
-    }
-    async googleTokenAuth(googleTokenDto) {
-        return this.authService.googleTokenLogin(googleTokenDto.idToken);
+    async changePassword(changePasswordDto, req) {
+        return this.authService.changePassword(req.userId, changePasswordDto.oldPassword, changePasswordDto.newPassword);
     }
     async updateProfile(updateProfileDto, req) {
         return this.authService.updateProfile(req.userId, updateProfileDto);
@@ -97,6 +83,26 @@ let AuthController = class AuthController {
         console.log('📍 Path:', file.path);
         return this.authService.uploadAndVerifyHandicapCard(req.userId, file.path);
     }
+    async getAllUsers() {
+        return this.authService.getAllUsers();
+    }
+    async deleteUser(userId) {
+        return this.authService.deleteUser(userId);
+    }
+    async googleAuth() { }
+    async googleAuthCallback(req, res) {
+        try {
+            const tokens = await this.authService['generateTokensForUser'](req.user);
+            return res.redirect(`myapp://auth/google?accessToken=${tokens.accessToken}&refreshToken=${tokens.refreshToken}&user=${encodeURIComponent(JSON.stringify(tokens.user))}`);
+        }
+        catch (error) {
+            console.error('Error in callback:', error);
+            return res.redirect('/login?error=auth_failed');
+        }
+    }
+    async googleTokenAuth(googleTokenDto) {
+        return this.authService.googleTokenLogin(googleTokenDto.idToken);
+    }
 };
 exports.AuthController = AuthController;
 __decorate([
@@ -111,8 +117,8 @@ __decorate([
 ], AuthController.prototype, "signUp", null);
 __decorate([
     (0, common_1.Post)('login'),
-    (0, swagger_1.ApiOperation)({ summary: 'Se connecter' }),
-    (0, swagger_1.ApiResponse)({ status: 200, description: 'Connexion réussie' }),
+    (0, swagger_1.ApiOperation)({ summary: 'Se connecter (user ou admin)' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Connexion réussie - retourne isAdmin: true si admin' }),
     (0, swagger_1.ApiResponse)({ status: 401, description: 'Identifiants incorrects' }),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
@@ -129,22 +135,9 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "refreshTokens", null);
 __decorate([
-    (0, common_1.UseGuards)(authentication_guard_1.AuthenticationGuard),
-    (0, common_1.Put)('change-password'),
-    (0, swagger_1.ApiBearerAuth)(),
-    (0, swagger_1.ApiOperation)({ summary: 'Changer le mot de passe' }),
-    (0, swagger_1.ApiResponse)({ status: 200, description: 'Mot de passe changé avec succès' }),
-    (0, swagger_1.ApiResponse)({ status: 401, description: 'Token invalide ou ancien mot de passe incorrect' }),
-    __param(0, (0, common_1.Body)()),
-    __param(1, (0, common_1.Req)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [change_password_dto_1.ChangePasswordDto, Object]),
-    __metadata("design:returntype", Promise)
-], AuthController.prototype, "changePassword", null);
-__decorate([
     (0, common_1.Post)('forgot-password'),
     (0, swagger_1.ApiOperation)({ summary: 'Demander un code OTP pour réinitialiser le mot de passe' }),
-    (0, swagger_1.ApiResponse)({ status: 200, description: 'Email envoyé si l\'utilisateur existe' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: "Email envoyé si l'utilisateur existe" }),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [forgot_password_dto_1.ForgotPasswordDto]),
@@ -171,33 +164,18 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "resetPassword", null);
 __decorate([
-    (0, common_1.Get)('google'),
-    (0, common_1.UseGuards)(google_auth_guard_1.GoogleAuthGuard),
-    (0, swagger_1.ApiOperation)({ summary: 'Authentification Google (redirection)' }),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", []),
-    __metadata("design:returntype", Promise)
-], AuthController.prototype, "googleAuth", null);
-__decorate([
-    (0, common_1.Get)('google/callback'),
-    (0, common_1.UseGuards)(google_auth_guard_1.GoogleAuthGuard),
-    (0, swagger_1.ApiOperation)({ summary: 'Callback Google OAuth' }),
-    __param(0, (0, common_1.Req)()),
-    __param(1, (0, common_1.Res)()),
-    __metadata("design:type", Function),
-    __metadata("design:paramtypes", [Object, Object]),
-    __metadata("design:returntype", Promise)
-], AuthController.prototype, "googleAuthCallback", null);
-__decorate([
-    (0, common_1.Post)('google/token'),
-    (0, swagger_1.ApiOperation)({ summary: 'Authentification Google via Token (mobile)' }),
-    (0, swagger_1.ApiResponse)({ status: 200, description: 'Connexion Google réussie' }),
-    (0, swagger_1.ApiResponse)({ status: 401, description: 'Token Google invalide' }),
+    (0, common_1.UseGuards)(authentication_guard_1.AuthenticationGuard),
+    (0, common_1.Put)('change-password'),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOperation)({ summary: 'Changer le mot de passe' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Mot de passe changé avec succès' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Token invalide ou ancien mot de passe incorrect' }),
     __param(0, (0, common_1.Body)()),
+    __param(1, (0, common_1.Req)()),
     __metadata("design:type", Function),
-    __metadata("design:paramtypes", [google_token_dto_1.GoogleTokenDto]),
+    __metadata("design:paramtypes", [change_password_dto_1.ChangePasswordDto, Object]),
     __metadata("design:returntype", Promise)
-], AuthController.prototype, "googleTokenAuth", null);
+], AuthController.prototype, "changePassword", null);
 __decorate([
     (0, common_1.UseGuards)(authentication_guard_1.AuthenticationGuard),
     (0, common_1.Put)('profile'),
@@ -275,30 +253,9 @@ __decorate([
             }
             cb(null, true);
         },
-        limits: {
-            fileSize: 10 * 1024 * 1024,
-        },
+        limits: { fileSize: 10 * 1024 * 1024 },
     })),
-    (0, swagger_1.ApiOperation)({ summary: 'Upload et vérification de la carte d\'handicap' }),
-    (0, swagger_1.ApiResponse)({
-        status: 200,
-        description: 'Carte vérifiée avec succès',
-        schema: {
-            example: {
-                success: true,
-                message: 'Carte d\'handicap vérifiée avec succès',
-                isVerified: true,
-                confidence: 95,
-                carteHandicape: '/uploads/handicap-cards/handicap-123456.jpg',
-                extractedData: {
-                    fullName: 'Ahmed Ben Ali',
-                    cardNumber: 'TN-2024-12345',
-                    disabilityType: 'Moteur',
-                    expiryDate: '2026-12-31'
-                }
-            }
-        }
-    }),
+    (0, swagger_1.ApiOperation)({ summary: "Upload et vérification de la carte d'handicap" }),
     (0, swagger_1.ApiResponse)({ status: 400, description: 'Carte invalide ou non conforme' }),
     (0, swagger_1.ApiResponse)({ status: 401, description: 'Non authentifié' }),
     __param(0, (0, common_2.UploadedFile)()),
@@ -307,6 +264,57 @@ __decorate([
     __metadata("design:paramtypes", [Object, Object]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "uploadHandicapCard", null);
+__decorate([
+    (0, common_1.UseGuards)(authentication_guard_1.AuthenticationGuard, admin_guard_1.AdminGuard),
+    (0, common_1.Get)('admin/users'),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOperation)({ summary: '🔒 ADMIN - Récupérer tous les utilisateurs' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Liste des utilisateurs' }),
+    (0, swagger_1.ApiResponse)({ status: 403, description: 'Accès refusé - Admin seulement' }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "getAllUsers", null);
+__decorate([
+    (0, common_1.UseGuards)(authentication_guard_1.AuthenticationGuard, admin_guard_1.AdminGuard),
+    (0, common_1.Delete)('admin/users/:id'),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOperation)({ summary: '🔒 ADMIN - Supprimer un utilisateur' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Utilisateur supprimé' }),
+    (0, swagger_1.ApiResponse)({ status: 403, description: 'Accès refusé - Admin seulement' }),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "deleteUser", null);
+__decorate([
+    (0, common_1.Get)('google'),
+    (0, common_1.UseGuards)(google_auth_guard_1.GoogleAuthGuard),
+    (0, swagger_1.ApiOperation)({ summary: 'Authentification Google (redirection)' }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "googleAuth", null);
+__decorate([
+    (0, common_1.Get)('google/callback'),
+    (0, common_1.UseGuards)(google_auth_guard_1.GoogleAuthGuard),
+    (0, swagger_1.ApiOperation)({ summary: 'Callback Google OAuth' }),
+    __param(0, (0, common_1.Req)()),
+    __param(1, (0, common_1.Res)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "googleAuthCallback", null);
+__decorate([
+    (0, common_1.Post)('google/token'),
+    (0, swagger_1.ApiOperation)({ summary: 'Authentification Google via Token (mobile)' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Connexion Google réussie' }),
+    (0, swagger_1.ApiResponse)({ status: 401, description: 'Token Google invalide' }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [google_token_dto_1.GoogleTokenDto]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "googleTokenAuth", null);
 exports.AuthController = AuthController = __decorate([
     (0, swagger_1.ApiTags)('Authentication'),
     (0, common_1.Controller)('auth'),

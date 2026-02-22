@@ -81,6 +81,27 @@ let AuthService = class AuthService {
         this.rolesService = rolesService;
         this.googleClient = new google_auth_library_1.OAuth2Client(this.configService.get('GOOGLE_CLIENT_ID'));
     }
+    async createAdminIfNotExists() {
+        const adminEmail = this.configService.get('ADMIN_EMAIL') || 'admin@sensbridge.com';
+        const adminPassword = this.configService.get('ADMIN_PASSWORD') || 'Admin@1234';
+        const adminExists = await this.UserModel.findOne({ email: adminEmail });
+        if (!adminExists) {
+            const hashedPassword = await bcrypt.hash(adminPassword, 10);
+            await this.UserModel.create({
+                name: 'Super Admin',
+                email: adminEmail,
+                password: hashedPassword,
+                role: 'ADMIN',
+                userType: 'ADMIN',
+                isEmailVerified: true,
+                authProvider: 'local',
+            });
+            console.log('✅ Admin créé avec succès:', adminEmail);
+        }
+        else {
+            console.log('ℹ️  Admin existe déjà:', adminEmail);
+        }
+    }
     async signup(signupData) {
         const { email, password, name, phone, userType, language, carteHandicape } = signupData;
         console.log('═══════════════════════════════════════');
@@ -103,11 +124,12 @@ let AuthService = class AuthService {
             password: hashedPassword,
             phone: phone || undefined,
             userType: userType || 'USER',
+            role: 'USER',
             language: language || undefined,
             carteHandicape: carteHandicape || undefined,
         });
         console.log('✅ User créé avec succès:', user._id);
-        const tokens = await this.generateUserTokens(user._id);
+        const tokens = await this.generateUserTokens(user._id, user.role);
         return {
             ...tokens,
             user: {
@@ -116,6 +138,7 @@ let AuthService = class AuthService {
                 email: user.email,
                 phone: user.phone,
                 userType: user.userType,
+                role: user.role,
                 language: user.language,
                 carteHandicape: user.carteHandicape,
             },
@@ -131,7 +154,7 @@ let AuthService = class AuthService {
         if (!passwordMatch) {
             throw new common_1.UnauthorizedException('Wrong credentials');
         }
-        const tokens = await this.generateUserTokens(user._id);
+        const tokens = await this.generateUserTokens(user._id, user.role);
         return {
             ...tokens,
             user: {
@@ -140,7 +163,9 @@ let AuthService = class AuthService {
                 email: user.email,
                 phone: user.phone,
                 userType: user.userType,
+                role: user.role,
                 language: user.language,
+                isAdmin: user.role === 'ADMIN',
             },
         };
     }
@@ -174,7 +199,7 @@ let AuthService = class AuthService {
                 expiryDate,
                 otp,
             });
-            console.log('📧 Envoi de l\'email avec OTP:', otp);
+            console.log("📧 Envoi de l'email avec OTP:", otp);
             try {
                 await this.mailService.sendPasswordResetEmail(email, otp);
                 console.log('✅ Email envoyé avec succès');
@@ -216,7 +241,7 @@ let AuthService = class AuthService {
         return {
             success: true,
             resetToken: token.token,
-            message: 'OTP verified successfully'
+            message: 'OTP verified successfully',
         };
     }
     async resetPassword(newPassword, resetToken) {
@@ -249,7 +274,7 @@ let AuthService = class AuthService {
         console.log('═══════════════════════════════════════');
         return {
             success: true,
-            message: 'Password reset successfully'
+            message: 'Password reset successfully',
         };
     }
     async refreshTokens(refreshToken) {
@@ -260,13 +285,17 @@ let AuthService = class AuthService {
         if (!token) {
             throw new common_1.UnauthorizedException('Refresh Token is invalid');
         }
-        return this.generateUserTokens(token.userId);
+        const user = await this.UserModel.findById(token.userId);
+        return this.generateUserTokens(token.userId, user?.role);
     }
-    async generateUserTokens(userId) {
+    async generateUserTokens(userId, role) {
         const secret = this.configService.get('JWT_SECRET') || 'your-secret-key';
-        const accessToken = this.jwtService.sign({ userId: userId.toString() }, {
+        const accessToken = this.jwtService.sign({
+            userId: userId.toString(),
+            role: role || 'USER',
+        }, {
             secret,
-            expiresIn: '10h'
+            expiresIn: '10h',
         });
         const refreshToken = (0, uuid_1.v4)();
         await this.storeRefreshToken(refreshToken, userId);
@@ -294,10 +323,34 @@ let AuthService = class AuthService {
         }
         return role.permissions;
     }
+    async getAllUsers() {
+        const users = await this.UserModel.find({ role: { $ne: 'ADMIN' } })
+            .select('-password')
+            .sort({ createdAt: -1 });
+        return {
+            success: true,
+            total: users.length,
+            users,
+        };
+    }
+    async deleteUser(userId) {
+        const user = await this.UserModel.findById(userId);
+        if (!user) {
+            throw new common_1.NotFoundException('Utilisateur non trouvé');
+        }
+        if (user.role === 'ADMIN') {
+            throw new common_1.BadRequestException('Impossible de supprimer un admin');
+        }
+        await this.UserModel.findByIdAndDelete(userId);
+        return {
+            success: true,
+            message: 'Utilisateur supprimé avec succès',
+        };
+    }
     async validateGoogleUser(profile) {
         console.log('✅ Validating Google user...');
         let user = await this.UserModel.findOne({
-            email: profile.emails[0].value
+            email: profile.emails[0].value,
         });
         if (user) {
             if (!user.googleId) {
@@ -317,6 +370,7 @@ let AuthService = class AuthService {
                 profilePicture: profile.photos?.[0]?.value,
                 isEmailVerified: true,
                 authProvider: 'google',
+                role: 'USER',
             });
         }
         return user;
@@ -353,6 +407,7 @@ let AuthService = class AuthService {
                     profilePicture: payload.picture,
                     isEmailVerified: true,
                     authProvider: 'google',
+                    role: 'USER',
                 });
             }
             return this.generateTokensForUser(user);
@@ -366,9 +421,9 @@ let AuthService = class AuthService {
         const payload = {
             userId: user._id.toString(),
             email: user.email,
+            role: user.role || 'USER',
         };
         const secret = this.configService.get('JWT_SECRET') || 'your-secret-key';
-        const refreshSecret = this.configService.get('JWT_REFRESH_SECRET') || 'your-refresh-secret';
         const accessToken = this.jwtService.sign(payload, {
             secret,
             expiresIn: '1h',
@@ -385,6 +440,8 @@ let AuthService = class AuthService {
                 name: user.name,
                 email: user.email,
                 profilePicture: user.profilePicture,
+                role: user.role,
+                isAdmin: user.role === 'ADMIN',
             },
         };
     }
@@ -399,13 +456,13 @@ let AuthService = class AuthService {
         if (updateData.email && updateData.email !== user.email) {
             const emailExists = await this.UserModel.findOne({
                 email: updateData.email,
-                _id: { $ne: userId }
+                _id: { $ne: userId },
             });
             if (emailExists) {
                 throw new common_1.BadRequestException('Email already in use');
             }
         }
-        Object.keys(updateData).forEach(key => {
+        Object.keys(updateData).forEach((key) => {
             if (updateData[key] !== undefined) {
                 user[key] = updateData[key];
             }
@@ -422,6 +479,7 @@ let AuthService = class AuthService {
                 email: user.email,
                 phone: user.phone,
                 userType: user.userType,
+                role: user.role,
                 language: user.language,
                 carteHandicape: user.carteHandicape,
                 profilePicture: user.profilePicture,
@@ -441,11 +499,13 @@ let AuthService = class AuthService {
                 email: user.email,
                 phone: user.phone,
                 userType: user.userType,
+                role: user.role,
                 language: user.language,
                 carteHandicape: user.carteHandicape,
                 profilePicture: user.profilePicture,
                 authProvider: user.authProvider,
                 isEmailVerified: user.isEmailVerified,
+                isAdmin: user.role === 'ADMIN',
             },
         };
     }
@@ -482,11 +542,11 @@ let AuthService = class AuthService {
             expiryDate: analysisResult.extractedData.expiryDate,
         };
         await user.save();
-        console.log('✅ Carte d\'handicap vérifiée et sauvegardée');
+        console.log("✅ Carte d'handicap vérifiée et sauvegardée");
         console.log('═══════════════════════════════════════');
         return {
             success: true,
-            message: 'Carte d\'handicap vérifiée avec succès',
+            message: "Carte d'handicap vérifiée avec succès",
             isVerified: true,
             confidence: analysisResult.confidence,
             carteHandicape: cardUrl,

@@ -1,4 +1,5 @@
 // src/auth/auth.service.ts
+
 import {
   BadRequestException,
   Injectable,
@@ -27,7 +28,7 @@ import { OcrService } from 'src/services/ocr.service';
 
 @Injectable()
 export class AuthService {
-  private googleClient: OAuth2Client; // ✅ Déclarer googleClient
+  private googleClient: OAuth2Client;
 
   constructor(
     @InjectModel(User.name) private UserModel: Model<User>,
@@ -40,10 +41,33 @@ export class AuthService {
     private mailService: MailService,
     private rolesService: RolesService,
   ) {
-    // ✅ Initialiser googleClient dans le constructeur
     this.googleClient = new OAuth2Client(
       this.configService.get<string>('GOOGLE_CLIENT_ID'),
     );
+  }
+
+  // ✅ NOUVEAU: Créer un admin statique (à appeler au démarrage ou via seed)
+  async createAdminIfNotExists() {
+    const adminEmail = this.configService.get<string>('ADMIN_EMAIL') || 'admin@sensbridge.com';
+    const adminPassword = this.configService.get<string>('ADMIN_PASSWORD') || 'Admin@1234';
+
+    const adminExists = await this.UserModel.findOne({ email: adminEmail });
+
+    if (!adminExists) {
+      const hashedPassword = await bcrypt.hash(adminPassword, 10);
+      await this.UserModel.create({
+        name: 'Super Admin',
+        email: adminEmail,
+        password: hashedPassword,
+        role: 'ADMIN',
+        userType: 'ADMIN',
+        isEmailVerified: true,
+        authProvider: 'local',
+      });
+      console.log('✅ Admin créé avec succès:', adminEmail);
+    } else {
+      console.log('ℹ️  Admin existe déjà:', adminEmail);
+    }
   }
 
   async signup(signupData: SignupDto) {
@@ -72,13 +96,14 @@ export class AuthService {
       password: hashedPassword,
       phone: phone || undefined,
       userType: userType || 'USER',
+      role: 'USER', // ✅ Toujours USER pour les inscriptions normales
       language: language || undefined,
       carteHandicape: carteHandicape || undefined,
     });
 
     console.log('✅ User créé avec succès:', user._id);
 
-    const tokens = await this.generateUserTokens(user._id);
+    const tokens = await this.generateUserTokens(user._id, user.role);
     return {
       ...tokens,
       user: {
@@ -87,6 +112,7 @@ export class AuthService {
         email: user.email,
         phone: user.phone,
         userType: user.userType,
+        role: user.role,
         language: user.language,
         carteHandicape: user.carteHandicape,
       },
@@ -95,7 +121,7 @@ export class AuthService {
 
   async login(credentials: LoginDto) {
     const { email, password } = credentials;
-    
+
     const user = await this.UserModel.findOne({ email });
     if (!user) {
       throw new UnauthorizedException('Wrong credentials');
@@ -106,7 +132,7 @@ export class AuthService {
       throw new UnauthorizedException('Wrong credentials');
     }
 
-    const tokens = await this.generateUserTokens(user._id);
+    const tokens = await this.generateUserTokens(user._id, user.role);
     return {
       ...tokens,
       user: {
@@ -115,7 +141,9 @@ export class AuthService {
         email: user.email,
         phone: user.phone,
         userType: user.userType,
+        role: user.role, // ✅ Retourne le rôle (ADMIN ou USER)
         language: user.language,
+        isAdmin: user.role === 'ADMIN', // ✅ Pratique pour le frontend
       },
     };
   }
@@ -141,15 +169,15 @@ export class AuthService {
   async forgotPassword(email: string) {
     console.log('═══════════════════════════════════════');
     console.log('🔵 FORGOT PASSWORD - Email:', email);
-    
+
     const user = await this.UserModel.findOne({ email });
 
     if (user) {
       console.log('✅ Utilisateur trouvé:', user.name);
-      
+
       const otp = Math.floor(100000 + Math.random() * 900000).toString();
       const resetToken = nanoid(64);
-      
+
       const expiryDate = new Date();
       expiryDate.setHours(expiryDate.getHours() + 1);
 
@@ -160,8 +188,8 @@ export class AuthService {
         otp,
       });
 
-      console.log('📧 Envoi de l\'email avec OTP:', otp);
-      
+      console.log("📧 Envoi de l'email avec OTP:", otp);
+
       try {
         await this.mailService.sendPasswordResetEmail(email, otp);
         console.log('✅ Email envoyé avec succès');
@@ -173,8 +201,8 @@ export class AuthService {
     }
 
     console.log('═══════════════════════════════════════');
-    
-    return { 
+
+    return {
       success: true,
       message: 'If this user exists, they will receive an email',
     };
@@ -185,7 +213,7 @@ export class AuthService {
     console.log('🔵 VERIFY OTP');
     console.log('Email:', email);
     console.log('OTP:', otp);
-    
+
     const user = await this.UserModel.findOne({ email });
     if (!user) {
       console.log('❌ Utilisateur non trouvé');
@@ -205,11 +233,11 @@ export class AuthService {
 
     console.log('✅ OTP valide - Token:', token.token.substring(0, 10) + '...');
     console.log('═══════════════════════════════════════');
-    
-    return { 
-      success: true, 
+
+    return {
+      success: true,
       resetToken: token.token,
-      message: 'OTP verified successfully'
+      message: 'OTP verified successfully',
     };
   }
 
@@ -217,7 +245,7 @@ export class AuthService {
     console.log('═══════════════════════════════════════');
     console.log('🔵 RESET PASSWORD');
     console.log('Reset token:', resetToken.substring(0, 10) + '...');
-    
+
     const token = await this.ResetTokenModel.findOneAndDelete({
       token: resetToken,
       expiryDate: { $gte: new Date() },
@@ -238,19 +266,19 @@ export class AuthService {
     await user.save();
 
     console.log('✅ Mot de passe réinitialisé pour:', user.email);
-    
+
     try {
       await this.mailService.sendPasswordResetConfirmation(user.email, user.name);
       console.log('✅ Email de confirmation envoyé');
     } catch (error) {
       console.error('⚠️ Erreur envoi email confirmation:', error);
     }
-    
+
     console.log('═══════════════════════════════════════');
 
-    return { 
+    return {
       success: true,
-      message: 'Password reset successfully' 
+      message: 'Password reset successfully',
     };
   }
 
@@ -263,23 +291,30 @@ export class AuthService {
     if (!token) {
       throw new UnauthorizedException('Refresh Token is invalid');
     }
-    return this.generateUserTokens(token.userId);
+
+    // ✅ Récupérer le user pour avoir son rôle
+    const user = await this.UserModel.findById(token.userId);
+    return this.generateUserTokens(token.userId, user?.role);
   }
 
-  async generateUserTokens(userId) {
+  // ✅ MODIFIÉ: generateUserTokens inclut le rôle dans le JWT
+  async generateUserTokens(userId, role?: string) {
     const secret = this.configService.get<string>('JWT_SECRET') || 'your-secret-key';
-    
-    const accessToken = this.jwtService.sign(
-      { userId: userId.toString() },
-      { 
-        secret,
-        expiresIn: '10h' 
-      }
-    );
-    
-    const refreshToken = uuidv4();
 
+    const accessToken = this.jwtService.sign(
+      { 
+        userId: userId.toString(),
+        role: role || 'USER', // ✅ Le rôle est dans le token JWT
+      },
+      {
+        secret,
+        expiresIn: '10h',
+      },
+    );
+
+    const refreshToken = uuidv4();
     await this.storeRefreshToken(refreshToken, userId);
+
     return {
       accessToken,
       refreshToken,
@@ -317,13 +352,44 @@ export class AuthService {
     return role.permissions;
   }
 
-  // ✅ MÉTHODE Google : Valider l'utilisateur Google (pour Strategy)
+  // ✅ NOUVEAU: Récupérer tous les utilisateurs (admin seulement)
+  async getAllUsers() {
+    const users = await this.UserModel.find({ role: { $ne: 'ADMIN' } })
+      .select('-password')
+      .sort({ createdAt: -1 });
+
+    return {
+      success: true,
+      total: users.length,
+      users,
+    };
+  }
+
+  // ✅ NOUVEAU: Supprimer un utilisateur (admin seulement)
+  async deleteUser(userId: string) {
+    const user = await this.UserModel.findById(userId);
+
+    if (!user) {
+      throw new NotFoundException('Utilisateur non trouvé');
+    }
+
+    if (user.role === 'ADMIN') {
+      throw new BadRequestException('Impossible de supprimer un admin');
+    }
+
+    await this.UserModel.findByIdAndDelete(userId);
+
+    return {
+      success: true,
+      message: 'Utilisateur supprimé avec succès',
+    };
+  }
+
   async validateGoogleUser(profile: any) {
     console.log('✅ Validating Google user...');
 
-    // ✅ CORRECTION: UserModel au lieu de userModel
-    let user = await this.UserModel.findOne({ 
-      email: profile.emails[0].value 
+    let user = await this.UserModel.findOne({
+      email: profile.emails[0].value,
     });
 
     if (user) {
@@ -335,28 +401,26 @@ export class AuthService {
         await user.save();
       }
     } else {
-      // ✅ CORRECTION: UserModel au lieu de userModel
       user = await this.UserModel.create({
         googleId: profile.id,
         name: profile.displayName,
         email: profile.emails[0].value,
-        password: '', // ✅ Mot de passe vide pour Google Auth
+        password: '',
         profilePicture: profile.photos?.[0]?.value,
         isEmailVerified: true,
         authProvider: 'google',
+        role: 'USER',
       });
     }
 
     return user;
   }
 
-  // ✅ MÉTHODE Google : Authentification via Token (pour mobile)
   async googleTokenLogin(idToken: string) {
     try {
       console.log('🔵 Google Token Auth Request');
       console.log('Token reçu:', idToken?.substring(0, 20) + '...');
 
-      // ✅ googleClient est maintenant défini
       const ticket = await this.googleClient.verifyIdToken({
         idToken,
         audience: this.configService.get<string>('GOOGLE_CLIENT_ID'),
@@ -369,7 +433,6 @@ export class AuthService {
         throw new UnauthorizedException('Token Google invalide');
       }
 
-      // ✅ CORRECTION: UserModel au lieu de userModel
       let user = await this.UserModel.findOne({ email: payload.email });
 
       if (user) {
@@ -381,15 +444,15 @@ export class AuthService {
           await user.save();
         }
       } else {
-        // ✅ CORRECTION: UserModel au lieu de userModel
         user = await this.UserModel.create({
           googleId: payload.sub,
           name: payload.name,
           email: payload.email,
-          password: '', // ✅ Mot de passe vide pour Google Auth
+          password: '',
           profilePicture: payload.picture,
           isEmailVerified: true,
           authProvider: 'google',
+          role: 'USER',
         });
       }
 
@@ -400,16 +463,14 @@ export class AuthService {
     }
   }
 
-  // ✅ MÉTHODE : Générer les tokens pour un utilisateur
-  // ✅ CORRECTION: Changer UserDocument en User
   private async generateTokensForUser(user: User) {
-    const payload = { 
+    const payload = {
       userId: user._id.toString(),
       email: user.email,
+      role: user.role || 'USER', // ✅ Inclure le rôle
     };
 
     const secret = this.configService.get<string>('JWT_SECRET') || 'your-secret-key';
-    const refreshSecret = this.configService.get<string>('JWT_REFRESH_SECRET') || 'your-refresh-secret';
 
     const accessToken = this.jwtService.sign(payload, {
       secret,
@@ -429,114 +490,108 @@ export class AuthService {
         name: user.name,
         email: user.email,
         profilePicture: user.profilePicture,
+        role: user.role,
+        isAdmin: user.role === 'ADMIN',
       },
     };
   }
+
   async updateProfile(userId: string, updateData: UpdateProfileDto) {
-  console.log('═══════════════════════════════════════');
-  console.log('🔵 UPDATE PROFILE - userId:', userId);
-  console.log('Données à mettre à jour:', updateData);
+    console.log('═══════════════════════════════════════');
+    console.log('🔵 UPDATE PROFILE - userId:', userId);
+    console.log('Données à mettre à jour:', updateData);
 
-  const user = await this.UserModel.findById(userId);
-  if (!user) {
-    throw new NotFoundException('User not found');
-  }
+    const user = await this.UserModel.findById(userId);
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
 
-  // ✅ Vérifier si l'email est déjà utilisé par un autre utilisateur
-  if (updateData.email && updateData.email !== user.email) {
-    const emailExists = await this.UserModel.findOne({ 
-      email: updateData.email,
-      _id: { $ne: userId } // Exclure l'utilisateur actuel
+    if (updateData.email && updateData.email !== user.email) {
+      const emailExists = await this.UserModel.findOne({
+        email: updateData.email,
+        _id: { $ne: userId },
+      });
+
+      if (emailExists) {
+        throw new BadRequestException('Email already in use');
+      }
+    }
+
+    Object.keys(updateData).forEach((key) => {
+      if (updateData[key] !== undefined) {
+        user[key] = updateData[key];
+      }
     });
-    
-    if (emailExists) {
-      throw new BadRequestException('Email already in use');
-    }
+
+    await user.save();
+
+    console.log('✅ Profil mis à jour avec succès');
+    console.log('═══════════════════════════════════════');
+
+    return {
+      success: true,
+      message: 'Profile updated successfully',
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        userType: user.userType,
+        role: user.role,
+        language: user.language,
+        carteHandicape: user.carteHandicape,
+        profilePicture: user.profilePicture,
+      },
+    };
   }
 
-  // ✅ Mettre à jour uniquement les champs fournis
-  Object.keys(updateData).forEach(key => {
-    if (updateData[key] !== undefined) {
-      user[key] = updateData[key];
+  async getProfile(userId: string) {
+    const user = await this.UserModel.findById(userId).select('-password');
+
+    if (!user) {
+      throw new NotFoundException('User not found');
     }
-  });
 
-  await user.save();
-
-  console.log('✅ Profil mis à jour avec succès');
-  console.log('═══════════════════════════════════════');
-
-  return {
-    success: true,
-    message: 'Profile updated successfully',
-    user: {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      userType: user.userType,
-      language: user.language,
-      carteHandicape: user.carteHandicape,
-      profilePicture: user.profilePicture,
-    },
-  };
-}
-async getProfile(userId: string) {
-  const user = await this.UserModel.findById(userId).select('-password');
-  
-  if (!user) {
-    throw new NotFoundException('User not found');
+    return {
+      success: true,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        userType: user.userType,
+        role: user.role,
+        language: user.language,
+        carteHandicape: user.carteHandicape,
+        profilePicture: user.profilePicture,
+        authProvider: user.authProvider,
+        isEmailVerified: user.isEmailVerified,
+        isAdmin: user.role === 'ADMIN',
+      },
+    };
   }
 
-  return {
-    success: true,
-    user: {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      userType: user.userType,
-      language: user.language,
-      carteHandicape: user.carteHandicape,
-      profilePicture: user.profilePicture,
-      authProvider: user.authProvider,
-      isEmailVerified: user.isEmailVerified,
-    },
-  };
-}
-// src/auth/auth.service.ts - AJOUTER CES MÉTHODES À LA FIN DE VOTRE CLASSE
-
-  /**
-   * ✅ UPLOAD ET ANALYSE DE LA CARTE D'HANDICAP
-   */
-  async uploadAndVerifyHandicapCard(
-    userId: string,
-    imagePath: string,
-  ) {
+  async uploadAndVerifyHandicapCard(userId: string, imagePath: string) {
     console.log('═══════════════════════════════════════');
     console.log('🔵 UPLOAD & VERIFY HANDICAP CARD');
     console.log('👤 User ID:', userId);
     console.log('📸 Image:', imagePath);
 
-    // 1️⃣ Récupérer l'utilisateur
     const user = await this.UserModel.findById(userId);
     if (!user) {
       throw new NotFoundException('Utilisateur non trouvé');
     }
 
-    // 2️⃣ Analyser la carte avec OCR (injecter OcrService dans le constructor)
     const ocrService = new OcrService(this.configService);
     const analysisResult = await ocrService.analyzeHandicapCard(imagePath);
 
-    // 3️⃣ Vérifier si la carte est valide
     if (!analysisResult.isValid) {
       console.log('❌ Carte invalide:', analysisResult.reason);
       throw new BadRequestException(
-        `Carte d'handicap invalide: ${analysisResult.reason}`
+        `Carte d'handicap invalide: ${analysisResult.reason}`,
       );
     }
 
-    // 4️⃣ Vérifier si le nom correspond (optionnel mais recommandé)
     if (analysisResult.extractedData.fullName) {
       const nameMatch = ocrService.verifyNameMatch(
         analysisResult.extractedData.fullName,
@@ -547,17 +602,13 @@ async getProfile(userId: string) {
         console.log('⚠️ Le nom sur la carte ne correspond pas au profil');
         console.log('   Carte:', analysisResult.extractedData.fullName);
         console.log('   Profil:', user.name);
-        
-        // Vous pouvez soit rejeter, soit juste avertir
-        // throw new BadRequestException('Le nom sur la carte ne correspond pas à votre profil');
       }
     }
 
-    // 5️⃣ Sauvegarder l'URL de la carte et marquer comme vérifié
     const cardUrl = `/uploads/handicap-cards/${path.basename(imagePath)}`;
-    
+
     user.carteHandicape = cardUrl;
-    user.isHandicapVerified = true; // ✅ Nouveau champ à ajouter au schema
+    user.isHandicapVerified = true;
     user.handicapVerifiedAt = new Date();
     user.handicapData = {
       cardNumber: analysisResult.extractedData.cardNumber,
@@ -567,12 +618,12 @@ async getProfile(userId: string) {
 
     await user.save();
 
-    console.log('✅ Carte d\'handicap vérifiée et sauvegardée');
+    console.log("✅ Carte d'handicap vérifiée et sauvegardée");
     console.log('═══════════════════════════════════════');
 
     return {
       success: true,
-      message: 'Carte d\'handicap vérifiée avec succès',
+      message: "Carte d'handicap vérifiée avec succès",
       isVerified: true,
       confidence: analysisResult.confidence,
       carteHandicape: cardUrl,

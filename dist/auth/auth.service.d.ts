@@ -19,6 +19,7 @@ export declare class AuthService {
     private rolesService;
     private googleClient;
     constructor(UserModel: Model<User>, RefreshTokenModel: Model<RefreshToken>, ResetTokenModel: Model<ResetToken>, jwtService: JwtService, configService: ConfigService, mailService: MailService, rolesService: RolesService);
+    createAdminIfNotExists(): Promise<void>;
     signup(signupData: SignupDto): Promise<{
         user: {
             id: mongoose.Types.ObjectId;
@@ -26,6 +27,7 @@ export declare class AuthService {
             email: string;
             phone: string | undefined;
             userType: string | undefined;
+            role: import("./schemas/user.schema").UserRole | undefined;
             language: string | undefined;
             carteHandicape: string | undefined;
         };
@@ -39,7 +41,9 @@ export declare class AuthService {
             email: string;
             phone: string | undefined;
             userType: string | undefined;
+            role: import("./schemas/user.schema").UserRole | undefined;
             language: string | undefined;
+            isAdmin: boolean;
         };
         accessToken: string;
         refreshToken: string;
@@ -64,7 +68,7 @@ export declare class AuthService {
         accessToken: string;
         refreshToken: string;
     }>;
-    generateUserTokens(userId: any): Promise<{
+    generateUserTokens(userId: any, role?: string): Promise<{
         accessToken: string;
         refreshToken: string;
     }>;
@@ -73,6 +77,21 @@ export declare class AuthService {
         resource: import("../roles/enums/resource.enum").Resource;
         actions: import("../roles/enums/action.enum").Action[];
     }[]>;
+    getAllUsers(): Promise<{
+        success: boolean;
+        total: number;
+        users: (mongoose.Document<unknown, {}, User, {}, mongoose.DefaultSchemaOptions> & User & Required<{
+            _id: mongoose.Types.ObjectId;
+        }> & {
+            __v: number;
+        } & {
+            id: string;
+        })[];
+    }>;
+    deleteUser(userId: string): Promise<{
+        success: boolean;
+        message: string;
+    }>;
     validateGoogleUser(profile: any): Promise<mongoose.Document<unknown, {}, User, {}, mongoose.DefaultSchemaOptions> & User & Required<{
         _id: mongoose.Types.ObjectId;
     }> & {
@@ -90,6 +109,8 @@ export declare class AuthService {
             name: string;
             email: string;
             profilePicture: string | undefined;
+            role: import("./schemas/user.schema").UserRole | undefined;
+            isAdmin: boolean;
         };
     }>;
     private generateTokensForUser;
@@ -102,6 +123,7 @@ export declare class AuthService {
             email: string;
             phone: string | undefined;
             userType: string | undefined;
+            role: import("./schemas/user.schema").UserRole | undefined;
             language: string | undefined;
             carteHandicape: string | undefined;
             profilePicture: string | undefined;
@@ -115,11 +137,13 @@ export declare class AuthService {
             email: string;
             phone: string | undefined;
             userType: string | undefined;
+            role: import("./schemas/user.schema").UserRole | undefined;
             language: string | undefined;
             carteHandicape: string | undefined;
             profilePicture: string | undefined;
             authProvider: string | undefined;
             isEmailVerified: boolean | undefined;
+            isAdmin: boolean;
         };
     }>;
     uploadAndVerifyHandicapCard(userId: string, imagePath: string): Promise<{
