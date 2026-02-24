@@ -11,4 +11,5 @@ export default () => ({
   whisper: {
     serviceUrl: process.env.WHISPER_SERVICE_URL || 'http://localhost:8000',
   },
+
 });
