@@ -96,6 +96,23 @@ export class User extends Document {
 
   @Prop({ default: true })
   notificationEnabled?: boolean;
+  /** Statut d'approbation par l'admin (connexion app mobile) */
+  @Prop({ enum: ['pending', 'approved', 'rejected'], default: 'pending' })
+  approvalStatus?: 'pending' | 'approved' | 'rejected';
+
+  @Prop()
+  approvedAt?: Date;
+
+  @Prop()
+  approvedBy?: string;
+
+  /** Raison du refus (si approvalStatus === 'rejected') */
+  @Prop()
+  rejectionReason?: string;
+
+  /** Compte actif (admin peut bloquer/débloquer) — false = connexion refusée */
+  @Prop({ default: true })
+  isActive?: boolean;
 }
 
 export const UserSchema = SchemaFactory.createForClass(User);

@@ -25,8 +25,18 @@ async function bootstrap() {
   const config = new DocumentBuilder()
     .setTitle('SenseBridge Backend APIs')
     .setDescription('NestJS Auth API + Gloss + PANNs')
+    .setTitle('SenseBridge API')
+    .setDescription('API SenseBridge - Auth, Admin Dashboard, CRUD')
     .setVersion('1.0')
-    .addBearerAuth() 
+    .addBearerAuth(
+      {
+        type: 'http',
+        scheme: 'bearer',
+        bearerFormat: 'JWT',
+        description: 'JWT Admin token',
+      },
+      'admin-token',
+    )
     .build();
   const nestDocument = SwaggerModule.createDocument(app, config);
 
@@ -93,6 +103,13 @@ async function bootstrap() {
   SwaggerModule.setup('api', app, combinedDocument);
 
   await app.listen(process.env.PORT ?? 4004);
+    
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api', app, document);
+  
+  const port = process.env.PORT ?? 4004;
+  await app.listen(port, '0.0.0.0');
+  console.log(`[Nest] Application écoute sur http://localhost:${port}`);
 }
 
 bootstrap();

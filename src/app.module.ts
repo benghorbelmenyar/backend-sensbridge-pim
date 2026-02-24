@@ -14,6 +14,8 @@ import { EmergencyContactsModule } from './emergency-contacts/emergency-contacts
 import { SpeechModule } from './speech/speech.module';
 import { NotificationsModule } from './notifications/notifications.module';
 
+import { AdminModule } from './admin/admin.module';
+import { BabyCryModule } from './baby-cry/baby-cry.module';
 
 @Module({
   imports: [
@@ -31,6 +33,8 @@ import { NotificationsModule } from './notifications/notifications.module';
     EmergencyContactsModule,
     SpeechModule,
     NotificationsModule,
+    AdminModule,
+    BabyCryModule,
   ],
   controllers: [AppController],
   providers: [AppService],

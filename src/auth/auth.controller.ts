@@ -32,6 +32,7 @@ import { VerifyOtpDto } from './dtos/verify-otp.dto';
 import { GoogleAuthGuard } from 'src/guards/google-auth.guard';
 import { GoogleTokenDto } from './dtos/google-token.dto';
 import { UpdateProfileDto } from './dtos/update-profile.dto';
+import { RegisterDeviceDto } from './dtos/register-device.dto';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { UploadedFile, UseInterceptors } from '@nestjs/common';
 import { diskStorage } from 'multer';
@@ -163,20 +164,7 @@ export class AuthController {
       limits: { fileSize: 5 * 1024 * 1024 },
     }),
   )
-  @ApiOperation({ summary: 'Upload photo de profil' })
-  async uploadProfilePicture(@UploadedFile() file: Express.Multer.File, @Req() req) {
-    const imageUrl = `/uploads/profiles/${file.filename}`;
-
-    await this.authService.updateProfile(req.userId, {
-      profilePicture: imageUrl,
-    });
-
-    return {
-      success: true,
-      message: 'Profile picture uploaded successfully',
-      profilePicture: imageUrl,
-    };
-  }
+ 
 
   @UseGuards(AuthenticationGuard)
   @Post('profile/upload-handicap-card')
@@ -206,20 +194,7 @@ export class AuthController {
       limits: { fileSize: 10 * 1024 * 1024 },
     }),
   )
-  @ApiOperation({ summary: "Upload et vérification de la carte d'handicap" })
-  @ApiResponse({ status: 400, description: 'Carte invalide ou non conforme' })
-  @ApiResponse({ status: 401, description: 'Non authentifié' })
-  async uploadHandicapCard(@UploadedFile() file: Express.Multer.File, @Req() req) {
-    if (!file) {
-      throw new BadRequestException('Aucun fichier fourni');
-    }
-
-    console.log('📸 Fichier reçu:', file.filename);
-    console.log('📍 Path:', file.path);
-
-    return this.authService.uploadAndVerifyHandicapCard(req.userId, file.path);
-  }
-
+ 
   // ══════════════════════════════════════════
   //  ROUTES ADMIN (🔒 AdminGuard requis)
   // ══════════════════════════════════════════
@@ -307,5 +282,143 @@ export class AuthController {
   @ApiResponse({ status: 401, description: 'Token Google invalide' })
   async googleTokenAuth(@Body() googleTokenDto: GoogleTokenDto) {
     return this.authService.googleTokenLogin(googleTokenDto.idToken);
+  }
+
+  
+@UseGuards(AuthenticationGuard)
+@Post('device')
+@ApiBearerAuth()
+@ApiOperation({ summary: 'Enregistrer le device de l\'utilisateur (app mobile)' })
+@ApiResponse({ status: 201, description: 'Device enregistré' })
+@ApiResponse({ status: 401, description: 'Non authentifié' })
+async registerDevice(@Body() dto: RegisterDeviceDto, @Req() req) {
+  return this.authService.registerDevice(req.userId, dto);
+}
+
+@UseGuards(AuthenticationGuard)
+@Post('profile/upload-picture')
+@ApiBearerAuth()
+@UseInterceptors(
+  FileInterceptor('file', {
+    storage: diskStorage({
+      destination: './uploads/profiles',
+      filename: (req, file, callback) => {
+        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+        callback(null, `profile-${uniqueSuffix}${extname(file.originalname)}`);
+      },
+    }),
+   fileFilter: (req, file, cb) => {
+  console.log('📄 Mimetype reçu:', file.mimetype);
+  console.log('📄 Original name:', file.originalname);
+
+  // ✅ Android / iOS safe
+  if (
+    !file.mimetype.startsWith('image/') &&
+    file.mimetype !== 'application/octet-stream'
+  ) {
+    return cb(
+      new BadRequestException('Seules les images sont acceptées!'),
+      false,
+    );
+  }
+
+  cb(null, true);
+},
+
+
+    limits: { fileSize: 5 * 1024 * 1024 }, // 5MB max
+  }),
+)
+@ApiOperation({ summary: 'Upload photo de profil' })
+async uploadProfilePicture(@UploadedFile() file: Express.Multer.File, @Req() req) {
+  const imageUrl = `/uploads/profiles/${file.filename}`;
+  
+  await this.authService.updateProfile(req.userId, {
+    profilePicture: imageUrl,
+  });
+
+  return {
+    success: true,
+    message: 'Profile picture uploaded successfully',
+    profilePicture: imageUrl,
+  };
+}
+// src/auth/auth.controller.ts - AJOUTER CETTE ROUTE APRÈS uploadProfilePicture
+
+  /**
+   * ✅ UPLOAD ET VÉRIFICATION DE LA CARTE D'HANDICAP
+   */
+  @UseGuards(AuthenticationGuard)
+  @Post('profile/upload-handicap-card')
+  @ApiBearerAuth()
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: './uploads/handicap-cards',
+        filename: (req, file, callback) => {
+          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+          callback(null, `handicap-${uniqueSuffix}${extname(file.originalname)}`);
+        },
+      }),
+      fileFilter: (req, file, cb) => {
+  console.log('📄 [HANDICAP] Mimetype reçu:', file.mimetype);
+  console.log('📄 [HANDICAP] Original name:', file.originalname);
+
+  // ✅ Android / iOS SAFE
+  if (
+    !file.mimetype.startsWith('image/') &&
+    file.mimetype !== 'application/octet-stream'
+  ) {
+    return cb(
+      new BadRequestException('Seules les images sont acceptées!'),
+      false,
+    );
+  }
+
+  cb(null, true);
+}
+,
+      limits: { 
+        fileSize: 10 * 1024 * 1024, // 10MB max (cartes scannées peuvent être lourdes)
+      },
+    }),
+  )
+  @ApiOperation({ summary: 'Upload et vérification de la carte d\'handicap' })
+  @ApiResponse({ 
+    status: 200, 
+    description: 'Carte vérifiée avec succès',
+    schema: {
+      example: {
+        success: true,
+        message: 'Carte d\'handicap vérifiée avec succès',
+        isVerified: true,
+        confidence: 95,
+        carteHandicape: '/uploads/handicap-cards/handicap-123456.jpg',
+        extractedData: {
+          fullName: 'Ahmed Ben Ali',
+          cardNumber: 'TN-2024-12345',
+          disabilityType: 'Moteur',
+          expiryDate: '2026-12-31'
+        }
+      }
+    }
+  })
+  @ApiResponse({ status: 400, description: 'Carte invalide ou non conforme' })
+  @ApiResponse({ status: 401, description: 'Non authentifié' })
+  async uploadHandicapCard(
+    @UploadedFile() file: Express.Multer.File,
+    @Req() req,
+  ) {
+    if (!file) {
+      throw new BadRequestException('Aucun fichier fourni');
+    }
+
+    console.log('📸 Fichier reçu:', file.filename);
+    console.log('📍 Path:', file.path);
+
+    return this.authService.uploadAndVerifyHandicapCard(
+      req.userId,
+      file.path,
+    );
   }
 }

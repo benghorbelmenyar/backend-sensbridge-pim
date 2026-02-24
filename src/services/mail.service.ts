@@ -6,17 +6,40 @@ import * as nodemailer from 'nodemailer';
 @Injectable()
 export class MailService {
   private transporter;
+  /** Compte de test Ethereal (utilisé en dev quand MAIL_* n'est pas configuré). */
+  private etherealTransporter: any = null;
 
   constructor(private configService: ConfigService) {
     this.transporter = nodemailer.createTransport({
-      host: this.configService.get('MAIL_HOST'),
-      port: this.configService.get('MAIL_PORT'),
+      host: this.configService.get('MAIL_HOST') || 'localhost',
+      port: Number(this.configService.get('MAIL_PORT')) || 587,
       secure: false,
       auth: {
         user: this.configService.get('MAIL_USER'),
         pass: this.configService.get('MAIL_PASSWORD'),
       },
     });
+  }
+
+  /** Vrai si MAIL_HOST et MAIL_USER sont définis (sinon on utilise Ethereal en dev). */
+  private isMailConfigured(): boolean {
+    const host = this.configService.get('MAIL_HOST');
+    const user = this.configService.get('MAIL_USER');
+    return !!(host && user);
+  }
+
+  /** Crée un transport Ethereal (compte de test) pour envoyer des emails en dev sans config SMTP. */
+  private async getEtherealTransporter(): Promise<any> {
+    if (this.etherealTransporter) return this.etherealTransporter;
+    const testAccount = await nodemailer.createTestAccount();
+    this.etherealTransporter = nodemailer.createTransport({
+      host: testAccount.smtp.host,
+      port: testAccount.smtp.port,
+      secure: testAccount.smtp.secure,
+      auth: { user: testAccount.user, pass: testAccount.pass },
+    });
+    console.log('📧 Mode dev : emails envoyés via Ethereal (compte de test). Lien de prévisualisation affiché dans les logs.');
+    return this.etherealTransporter;
   }
 
   async sendPasswordResetEmail(email: string, otp: string) {
@@ -298,6 +321,79 @@ export class MailService {
       console.log('✅ Email de confirmation envoyé');
     } catch (error) {
       console.error('❌ Erreur envoi email confirmation:', error);
+    }
+  }
+
+  /** Email envoyé à l'utilisateur quand l'admin accepte sa demande d'inscription (app mobile) */
+  async sendApprovalAcceptanceEmail(to: string, userName: string) {
+    if (!to || !to.trim()) {
+      console.warn('⚠️ Email d\'acceptation non envoyé : adresse email destinataire manquante.');
+      return;
+    }
+    const displayName = (userName && String(userName).trim()) || 'Utilisateur';
+    const from = this.isMailConfigured()
+      ? (this.configService.get('MAIL_FROM') || this.configService.get('MAIL_USER') || 'noreply@sensebridge.com')
+      : 'SenseBridge <noreply@ethereal.email>';
+    const mailOptions = {
+      from,
+      to: to.trim(),
+      subject: 'Votre compte SenseBridge a été accepté',
+      html: `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <style>
+            body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; line-height: 1.6; color: #333; background-color: #f5f5f5; margin: 0; padding: 0; }
+            .container { max-width: 600px; margin: 40px auto; background-color: #ffffff; border-radius: 16px; overflow: hidden; box-shadow: 0 8px 24px rgba(0,0,0,0.1); }
+            .header { background: linear-gradient(135deg, #4CAF50 0%, #45A048 100%); padding: 40px 30px; text-align: center; color: white; }
+            .header h1 { margin: 0; font-size: 28px; font-weight: bold; }
+            .content { padding: 40px 30px; }
+            .content p { margin: 0 0 20px; font-size: 16px; line-height: 1.8; }
+            .success-box { background: #d4edda; border-left: 4px solid #28a745; padding: 20px; margin: 25px 0; border-radius: 4px; }
+            .footer { background-color: #f8f9fa; padding: 30px; text-align: center; font-size: 14px; color: #6c757d; border-top: 1px solid #e9ecef; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <h1>SenseBridge</h1>
+              <p style="margin: 10px 0 0; font-size: 16px; opacity: 0.95;">Demande d'inscription acceptée</p>
+            </div>
+            <div class="content">
+              <p style="font-size: 18px; font-weight: 600;">Bonjour <strong>${displayName}</strong>,</p>
+              <p>Votre demande d'inscription sur l'application SenseBridge a été <strong>acceptée</strong> par notre équipe.</p>
+              <div class="success-box">
+                <p style="margin: 0; color: #155724;"><strong>Vous pouvez maintenant vous connecter</strong> à l'application avec votre email et votre mot de passe.</p>
+              </div>
+              <p>Bienvenue dans la communauté SenseBridge.</p>
+              <p style="margin-top: 30px; color: #6c757d; font-size: 14px;">Cordialement,<br><strong style="color: #4CAF50;">L'équipe SenseBridge</strong></p>
+            </div>
+            <div class="footer">
+              <p style="margin: 0; font-size: 13px;">Cet email a été envoyé à ${to}</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `,
+    };
+    try {
+      const transport = this.isMailConfigured()
+        ? this.transporter
+        : await this.getEtherealTransporter();
+      const info = await transport.sendMail(mailOptions);
+      if (this.isMailConfigured()) {
+        console.log('✅ Email d\'acceptation envoyé à', to);
+      } else {
+        const previewUrl = nodemailer.getTestMessageUrl(info);
+        console.log('✅ Email d\'acceptation (mode dev Ethereal) envoyé à', to);
+        if (previewUrl) {
+          console.log('   📬 Prévisualiser l\'email :', previewUrl);
+        }
+      }
+    } catch (error) {
+      console.error('❌ Erreur envoi email acceptation:', error);
+      throw error;
     }
   }
 }

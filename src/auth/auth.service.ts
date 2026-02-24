@@ -2,6 +2,7 @@
 
 import {
   BadRequestException,
+  ForbiddenException,
   Injectable,
   InternalServerErrorException,
   NotFoundException,
@@ -24,6 +25,8 @@ import { UpdateProfileDto } from './dtos/update-profile.dto';
 import * as path from 'path';
 import { OcrService } from 'src/services/ocr.service';
 import { randomUUID } from 'crypto';
+import { Device } from '../admin/schemas/device.schema';
+import { RegisterDeviceDto } from './dtos/register-device.dto';
 
 @Injectable()
 export class AuthService {
@@ -35,6 +38,7 @@ export class AuthService {
     private RefreshTokenModel: Model<RefreshToken>,
     @InjectModel(ResetToken.name)
     private ResetTokenModel: Model<ResetToken>,
+    @InjectModel(Device.name) private deviceModel: Model<Device>,
     private jwtService: JwtService,
     private configService: ConfigService,
     private mailService: MailService,
@@ -98,13 +102,17 @@ export class AuthService {
       role: 'USER', // ✅ Toujours USER pour les inscriptions normales
       language: language || undefined,
       carteHandicape: carteHandicape || undefined,
+      approvalStatus: 'pending',
     });
 
-    console.log('✅ User créé avec succès:', user._id);
+    console.log('✅ User créé avec succès (en attente d\'approbation):', user._id);
 
     const tokens = await this.generateUserTokens(user._id, user.role);
+
     return {
-      ...tokens,
+      success: true,
+      requiresApproval: true,
+      message: 'Votre inscription a été enregistrée. Un administrateur doit valider votre compte avant que vous puissiez vous connecter.',
       user: {
         id: user._id,
         name: user.name,
@@ -113,7 +121,7 @@ export class AuthService {
         userType: user.userType,
         role: user.role,
         language: user.language,
-        carteHandicape: user.carteHandicape,
+        approvalStatus: 'pending',
       },
     };
   }
@@ -132,19 +140,25 @@ export class AuthService {
     }
 
     const tokens = await this.generateUserTokens(user._id, user.role);
-    return {
-      ...tokens,
-      user: {
-        id: user._id,
-        name: user.name,
-        email: user.email,
-        phone: user.phone,
-        userType: user.userType,
-        role: user.role, // ✅ Retourne le rôle (ADMIN ou USER)
-        language: user.language,
-        isAdmin: user.role === 'ADMIN', // ✅ Pratique pour le frontend
-      },
-    };
+    const status = user.approvalStatus ?? 'approved';
+    if (status === 'pending') {
+      throw new ForbiddenException(
+        "Votre compte est en attente de validation par l'administrateur. Vous serez notifié dès qu'il aura été validé.",
+      );
+    }
+    if (status === 'rejected') {
+      const msg =
+        (user as any).rejectionReason ||
+        "Votre compte a été refusé par l'administrateur. Contactez le support pour plus d'informations.";
+      throw new ForbiddenException({ message: msg, rejectionReason: (user as any).rejectionReason });
+    }
+    if ((user as any).isActive === false) {
+      throw new ForbiddenException(
+        "Votre compte a été désactivé par l'administrateur. Contactez le support.",
+      );
+    }
+
+    
   }
 
   async changePassword(userId, oldPassword: string, newPassword: string) {
@@ -413,6 +427,7 @@ const refreshToken = randomUUID();
         isEmailVerified: true,
         authProvider: 'google',
         role: 'USER',
+        approvalStatus: 'pending',
       });
     }
 
@@ -446,6 +461,23 @@ const refreshToken = randomUUID();
           user.authProvider = 'google';
           await user.save();
         }
+        const status = user.approvalStatus ?? 'approved';
+        if (status === 'pending') {
+          throw new ForbiddenException(
+            "Votre compte est en attente de validation par l'administrateur.",
+          );
+        }
+        if (status === 'rejected') {
+          const msg =
+            (user as any).rejectionReason ||
+            "Votre compte a été refusé par l'administrateur.";
+          throw new ForbiddenException({ message: msg, rejectionReason: (user as any).rejectionReason });
+        }
+        if ((user as any).isActive === false) {
+          throw new ForbiddenException(
+            "Votre compte a été désactivé par l'administrateur. Contactez le support.",
+          );
+        }
       } else {
         user = await this.UserModel.create({
           googleId: payload.sub,
@@ -456,7 +488,11 @@ const refreshToken = randomUUID();
           isEmailVerified: true,
           authProvider: 'google',
           role: 'USER',
+          approvalStatus: 'pending',
         });
+        throw new ForbiddenException(
+          "Votre inscription a été enregistrée. Un administrateur doit valider votre compte avant connexion.",
+        );
       }
 
       return this.generateTokensForUser(user);
@@ -724,5 +760,196 @@ const refreshToken = randomUUID();
       message: 'Carte d\'handicap rejetée',
       userId: user._id,
     };
+  }
+
+  /** Liste des utilisateurs (app mobile) en attente d'approbation */
+  async getPendingUsers() {
+    const users = await this.UserModel.find({ approvalStatus: 'pending' })
+      .select('-password')
+      .sort({ createdAt: -1 })
+      .lean();
+    return { data: users };
+  }
+
+  /** Accepter un utilisateur (connexion app autorisée) — envoie un email d'acceptation à l'utilisateur */
+  async approveUser(userId: string, adminId?: string) {
+    const user = await this.UserModel.findByIdAndUpdate(
+      userId,
+      {
+        approvalStatus: 'approved',
+        approvedAt: new Date(),
+        approvedBy: adminId,
+      },
+      { new: true },
+    )
+      .select('email name')
+      .lean();
+    if (!user) {
+      throw new NotFoundException('Utilisateur non trouvé');
+    }
+    const email = (user as any).email;
+    const name = (user as any).name;
+    try {
+      await this.mailService.sendApprovalAcceptanceEmail(email, name);
+    } catch (err) {
+      console.error('Envoi email acceptation échoué (compte tout de même accepté):', err);
+    }
+    return {
+      message: 'Utilisateur accepté',
+      user: { id: (user as any)._id, email, approvalStatus: 'approved' },
+    };
+  }
+
+  /** Refuser un utilisateur (connexion app bloquée), optionnellement avec une raison */
+  async rejectUser(userId: string, adminId?: string, reason?: string) {
+    const user = await this.UserModel.findByIdAndUpdate(
+      userId,
+      {
+        approvalStatus: 'rejected',
+        approvedAt: new Date(),
+        approvedBy: adminId,
+        ...(reason != null && reason.trim() !== '' && { rejectionReason: reason.trim() }),
+      },
+      { new: true },
+    );
+    if (!user) {
+      throw new NotFoundException('Utilisateur non trouvé');
+    }
+    return {
+      message: 'Utilisateur refusé',
+      user: { id: user._id, email: user.email, approvalStatus: user.approvalStatus, rejectionReason: (user as any).rejectionReason },
+    };
+  }
+
+  /** Nombre d'utilisateurs en attente (pour badge admin) */
+  async getPendingCount(): Promise<number> {
+    return this.UserModel.countDocuments({ approvalStatus: 'pending' });
+  }
+
+  /** Stats inscrits app par userType (NORMAL_PERSON, DEAF_PERSON, ORGANIZATION). USER = Normal Person. */
+  async getAppUsersStatsByType() {
+    try {
+      const byUserType = await this.UserModel.aggregate([
+        {
+          $group: {
+            _id: {
+              $cond: [
+                { $in: ['$userType', ['USER', 'NORMAL_PERSON', null, '']] },
+                'NORMAL_PERSON',
+                { $ifNull: ['$userType', 'NON_RENSEIGNÉ'] },
+              ],
+            },
+            count: { $sum: 1 },
+          },
+        },
+      ]);
+      const total = await this.UserModel.countDocuments();
+      const byUserTypeMap: Record<string, number> = {};
+      byUserType.forEach((row: any) => {
+        const key = row._id != null ? String(row._id) : 'NON_RENSEIGNÉ';
+        byUserTypeMap[key] = row.count ?? 0;
+      });
+      return { total, byUserType: byUserTypeMap };
+    } catch (err) {
+      console.error('getAppUsersStatsByType error:', err);
+      return { total: 0, byUserType: {} };
+    }
+  }
+
+  /** Liste paginée de tous les utilisateurs app mobile (pour admin : blocage/déblocage) */
+  async getAppUsers(params: { skip?: number; limit?: number; search?: string }) {
+    const { skip = 0, limit = 20, search } = params;
+    const filter: any = {};
+    if (search && search.trim()) {
+      filter.$or = [
+        { name: { $regex: search.trim(), $options: 'i' } },
+        { email: { $regex: search.trim(), $options: 'i' } },
+      ];
+    }
+    const total = await this.UserModel.countDocuments(filter);
+    const users = await this.UserModel.find(filter)
+      .select('-password')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+    return {
+      data: users,
+      total,
+      page: Math.floor(skip / limit) + 1,
+      totalPages: Math.ceil(total / limit),
+    };
+  }
+
+  /** Bloquer un utilisateur (isActive = false) */
+  async blockUser(userId: string) {
+    const user = await this.UserModel.findByIdAndUpdate(
+      userId,
+      { isActive: false },
+      { new: true },
+    );
+    if (!user) throw new NotFoundException('Utilisateur non trouvé');
+    return { message: 'Utilisateur bloqué', user: { id: user._id, email: user.email, isActive: (user as any).isActive } };
+  }
+
+  /** Débloquer un utilisateur (isActive = true) */
+  async unblockUser(userId: string) {
+    const user = await this.UserModel.findByIdAndUpdate(
+      userId,
+      { isActive: true },
+      { new: true },
+    );
+    if (!user) throw new NotFoundException('Utilisateur non trouvé');
+    return { message: 'Utilisateur débloqué', user: { id: user._id, email: user.email, isActive: (user as any).isActive } };
+  }
+
+  /** Détail d'un utilisateur app (même base que signup/login) */
+  async getOneAppUser(userId: string) {
+    const user = await this.UserModel.findById(userId).select('-password').lean();
+    if (!user) throw new NotFoundException('Utilisateur non trouvé');
+    return user;
+  }
+
+  /** Mise à jour par l'admin (nom, email, téléphone, etc.) */
+  async updateAppUser(userId: string, dto: UpdateProfileDto) {
+    const update: any = {};
+    if (dto.name != null) update.name = dto.name;
+    if (dto.email != null) update.email = dto.email;
+    if (dto.phone != null) update.phone = dto.phone;
+    if (dto.userType != null) update.userType = dto.userType;
+    if (dto.language != null) update.language = dto.language;
+    if (dto.carteHandicape != null) update.carteHandicape = dto.carteHandicape;
+    if (dto.profilePicture != null) update.profilePicture = dto.profilePicture;
+    const user = await this.UserModel.findByIdAndUpdate(userId, update, { new: true })
+      .select('-password')
+      .lean();
+    if (!user) throw new NotFoundException('Utilisateur non trouvé');
+    return user;
+  }
+
+  /** Suppression d'un utilisateur app (même base) */
+  async deleteAppUser(userId: string) {
+    const user = await this.UserModel.findByIdAndDelete(userId);
+    if (!user) throw new NotFoundException('Utilisateur non trouvé');
+    return { message: 'Utilisateur supprimé avec succès' };
+  }
+
+  /** Enregistrer ou mettre à jour le device de l'utilisateur connecté (appelé par l'app au login) */
+  async registerDevice(userId: string, dto: RegisterDeviceDto) {
+    const now = new Date();
+    const device = await this.deviceModel.findOneAndUpdate(
+      { deviceId: dto.deviceId },
+      {
+        deviceId: dto.deviceId,
+        userId,
+        type: dto.type,
+        ...(dto.name != null && { name: dto.name }),
+        ...(dto.os != null && { os: dto.os }),
+        lastSync: now,
+        isConnected: true,
+      },
+      { new: true, upsert: true },
+    );
+    return { device: device.toObject(), message: 'Device enregistré' };
   }
 }
