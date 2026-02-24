@@ -149,14 +149,47 @@ export declare class AuthService {
     uploadAndVerifyHandicapCard(userId: string, imagePath: string): Promise<{
         success: boolean;
         message: string;
-        isVerified: boolean;
+        handicapStatus: "PENDING" | "REJECTED";
         confidence: number;
         carteHandicape: string;
-        extractedData: {
-            fullName?: string;
-            cardNumber?: string;
-            expiryDate?: string;
-            disabilityType?: string;
-        };
+        extractedData: any;
+    }>;
+    getPendingHandicapCards(): Promise<{
+        success: boolean;
+        total: number;
+        cards: {
+            userId: mongoose.Types.ObjectId;
+            name: string;
+            email: string;
+            userType: string | undefined;
+            carteHandicape: string | undefined;
+            handicapOcrResult: {
+                isValid: boolean;
+                confidence: number;
+                reason?: string;
+                extractedData?: {
+                    fullName?: string;
+                    cardNumber?: string;
+                    expiryDate?: string;
+                    disabilityType?: string;
+                };
+            } | undefined;
+            handicapData: {
+                cardNumber?: string;
+                disabilityType?: string;
+                expiryDate?: string;
+            } | undefined;
+            createdAt: any;
+        }[];
+    }>;
+    approveHandicapCard(userId: string): Promise<{
+        success: boolean;
+        message: string;
+        userId: mongoose.Types.ObjectId;
+    }>;
+    rejectHandicapCard(userId: string, reason?: string): Promise<{
+        success: boolean;
+        message: string;
+        userId: mongoose.Types.ObjectId;
     }>;
 }

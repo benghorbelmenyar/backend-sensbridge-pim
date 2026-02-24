@@ -41,7 +41,7 @@ import { AdminGuard } from 'src/guards/admin.guard'; // ✅ Import du guard admi
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(private readonly authService: AuthService) { }
 
   // ══════════════════════════════════════════
   //  ROUTES PUBLIQUES
@@ -244,6 +244,36 @@ export class AuthController {
     return this.authService.deleteUser(userId);
   }
 
+  @UseGuards(AuthenticationGuard, AdminGuard)
+  @Get('admin/handicap-cards/pending')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '🔒 ADMIN - Récupérer les cartes handicap en attente' })
+  @ApiResponse({ status: 200, description: 'Liste des cartes en attente de vérification' })
+  async getPendingHandicapCards() {
+    return this.authService.getPendingHandicapCards();
+  }
+
+  @UseGuards(AuthenticationGuard, AdminGuard)
+  @Put('admin/handicap-cards/:userId/approve')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '🔒 ADMIN - Approuver une carte handicap' })
+  @ApiResponse({ status: 200, description: 'Carte approuvée' })
+  async approveHandicapCard(@Param('userId') userId: string) {
+    return this.authService.approveHandicapCard(userId);
+  }
+
+  @UseGuards(AuthenticationGuard, AdminGuard)
+  @Put('admin/handicap-cards/:userId/reject')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: '🔒 ADMIN - Rejeter une carte handicap' })
+  @ApiResponse({ status: 200, description: 'Carte rejetée' })
+  async rejectHandicapCard(
+    @Param('userId') userId: string,
+    @Body() body: { reason?: string },
+  ) {
+    return this.authService.rejectHandicapCard(userId, body.reason);
+  }
+
   // ══════════════════════════════════════════
   //  ROUTES GOOGLE
   // ══════════════════════════════════════════
@@ -251,7 +281,7 @@ export class AuthController {
   @Get('google')
   @UseGuards(GoogleAuthGuard)
   @ApiOperation({ summary: 'Authentification Google (redirection)' })
-  async googleAuth() {}
+  async googleAuth() { }
 
   @Get('google/callback')
   @UseGuards(GoogleAuthGuard)

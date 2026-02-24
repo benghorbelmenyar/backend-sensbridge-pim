@@ -100,15 +100,10 @@ export declare class AuthController {
     uploadHandicapCard(file: Express.Multer.File, req: any): Promise<{
         success: boolean;
         message: string;
-        isVerified: boolean;
+        handicapStatus: "PENDING" | "REJECTED";
         confidence: number;
         carteHandicape: string;
-        extractedData: {
-            fullName?: string;
-            cardNumber?: string;
-            expiryDate?: string;
-            disabilityType?: string;
-        };
+        extractedData: any;
     }>;
     getAllUsers(): Promise<{
         success: boolean;
@@ -124,6 +119,46 @@ export declare class AuthController {
     deleteUser(userId: string): Promise<{
         success: boolean;
         message: string;
+    }>;
+    getPendingHandicapCards(): Promise<{
+        success: boolean;
+        total: number;
+        cards: {
+            userId: import("mongoose").Types.ObjectId;
+            name: string;
+            email: string;
+            userType: string | undefined;
+            carteHandicape: string | undefined;
+            handicapOcrResult: {
+                isValid: boolean;
+                confidence: number;
+                reason?: string;
+                extractedData?: {
+                    fullName?: string;
+                    cardNumber?: string;
+                    expiryDate?: string;
+                    disabilityType?: string;
+                };
+            } | undefined;
+            handicapData: {
+                cardNumber?: string;
+                disabilityType?: string;
+                expiryDate?: string;
+            } | undefined;
+            createdAt: any;
+        }[];
+    }>;
+    approveHandicapCard(userId: string): Promise<{
+        success: boolean;
+        message: string;
+        userId: import("mongoose").Types.ObjectId;
+    }>;
+    rejectHandicapCard(userId: string, body: {
+        reason?: string;
+    }): Promise<{
+        success: boolean;
+        message: string;
+        userId: import("mongoose").Types.ObjectId;
     }>;
     googleAuth(): Promise<void>;
     googleAuthCallback(req: any, res: Response): Promise<void>;

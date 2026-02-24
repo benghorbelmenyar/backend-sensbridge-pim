@@ -89,6 +89,15 @@ let AuthController = class AuthController {
     async deleteUser(userId) {
         return this.authService.deleteUser(userId);
     }
+    async getPendingHandicapCards() {
+        return this.authService.getPendingHandicapCards();
+    }
+    async approveHandicapCard(userId) {
+        return this.authService.approveHandicapCard(userId);
+    }
+    async rejectHandicapCard(userId, body) {
+        return this.authService.rejectHandicapCard(userId, body.reason);
+    }
     async googleAuth() { }
     async googleAuthCallback(req, res) {
         try {
@@ -287,6 +296,39 @@ __decorate([
     __metadata("design:paramtypes", [String]),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "deleteUser", null);
+__decorate([
+    (0, common_1.UseGuards)(authentication_guard_1.AuthenticationGuard, admin_guard_1.AdminGuard),
+    (0, common_1.Get)('admin/handicap-cards/pending'),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOperation)({ summary: '🔒 ADMIN - Récupérer les cartes handicap en attente' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Liste des cartes en attente de vérification' }),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", []),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "getPendingHandicapCards", null);
+__decorate([
+    (0, common_1.UseGuards)(authentication_guard_1.AuthenticationGuard, admin_guard_1.AdminGuard),
+    (0, common_1.Put)('admin/handicap-cards/:userId/approve'),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOperation)({ summary: '🔒 ADMIN - Approuver une carte handicap' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Carte approuvée' }),
+    __param(0, (0, common_1.Param)('userId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "approveHandicapCard", null);
+__decorate([
+    (0, common_1.UseGuards)(authentication_guard_1.AuthenticationGuard, admin_guard_1.AdminGuard),
+    (0, common_1.Put)('admin/handicap-cards/:userId/reject'),
+    (0, swagger_1.ApiBearerAuth)(),
+    (0, swagger_1.ApiOperation)({ summary: '🔒 ADMIN - Rejeter une carte handicap' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Carte rejetée' }),
+    __param(0, (0, common_1.Param)('userId')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "rejectHandicapCard", null);
 __decorate([
     (0, common_1.Get)('google'),
     (0, common_1.UseGuards)(google_auth_guard_1.GoogleAuthGuard),

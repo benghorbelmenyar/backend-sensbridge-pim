@@ -302,7 +302,7 @@ export class AuthService {
     const secret = this.configService.get<string>('JWT_SECRET') || 'your-secret-key';
 
     const accessToken = this.jwtService.sign(
-      { 
+      {
         userId: userId.toString(),
         role: role || 'USER', // ✅ Le rôle est dans le token JWT
       },
@@ -582,52 +582,144 @@ export class AuthService {
       throw new NotFoundException('Utilisateur non trouvé');
     }
 
-    const ocrService = new OcrService(this.configService);
-    const analysisResult = await ocrService.analyzeHandicapCard(imagePath);
-
-    if (!analysisResult.isValid) {
-      console.log('❌ Carte invalide:', analysisResult.reason);
-      throw new BadRequestException(
-        `Carte d'handicap invalide: ${analysisResult.reason}`,
-      );
-    }
-
-    if (analysisResult.extractedData.fullName) {
-      const nameMatch = ocrService.verifyNameMatch(
-        analysisResult.extractedData.fullName,
-        user.name,
-      );
-
-      if (!nameMatch) {
-        console.log('⚠️ Le nom sur la carte ne correspond pas au profil');
-        console.log('   Carte:', analysisResult.extractedData.fullName);
-        console.log('   Profil:', user.name);
-      }
-    }
-
     const cardUrl = `/uploads/handicap-cards/${path.basename(imagePath)}`;
-
     user.carteHandicape = cardUrl;
-    user.isHandicapVerified = true;
-    user.handicapVerifiedAt = new Date();
-    user.handicapData = {
-      cardNumber: analysisResult.extractedData.cardNumber,
-      disabilityType: analysisResult.extractedData.disabilityType,
-      expiryDate: analysisResult.extractedData.expiryDate,
-    };
+
+    // ✅ Tenter l'OCR, mais sauvegarder la carte même si l'OCR échoue
+    let analysisResult: { isValid: boolean; confidence: number; reason?: string; extractedData: any } | null = null;
+
+    try {
+      const ocrService = new OcrService(this.configService);
+      analysisResult = await ocrService.analyzeHandicapCard(imagePath);
+    } catch (ocrError: any) {
+      console.error('⚠️ OCR échoué, la carte sera sauvegardée pour vérification manuelle:', ocrError.message);
+    }
+
+    if (analysisResult) {
+      // OCR a fonctionné → sauvegarder le résultat
+      user.handicapOcrResult = {
+        isValid: analysisResult.isValid,
+        confidence: analysisResult.confidence,
+        reason: analysisResult.reason,
+        extractedData: analysisResult.extractedData,
+      };
+      user.handicapData = {
+        cardNumber: analysisResult.extractedData?.cardNumber,
+        disabilityType: analysisResult.extractedData?.disabilityType,
+        expiryDate: analysisResult.extractedData?.expiryDate,
+      };
+
+      if (!analysisResult.isValid) {
+        user.handicapStatus = 'REJECTED';
+        user.isHandicapVerified = false;
+        user.handicapRejectReason = analysisResult.reason || 'Carte non reconnue par l\'OCR';
+        console.log('❌ Carte invalide (rejet automatique):', analysisResult.reason);
+      } else {
+        user.handicapStatus = 'PENDING';
+        user.isHandicapVerified = false;
+        console.log('⏳ Carte valide OCR → en attente de vérification admin');
+      }
+    } else {
+      // OCR a échoué → sauvegarder quand même comme PENDING pour vérification manuelle
+      user.handicapStatus = 'PENDING';
+      user.isHandicapVerified = false;
+      user.handicapOcrResult = {
+        isValid: false,
+        confidence: 0,
+        reason: 'Analyse OCR indisponible — vérification manuelle requise',
+      };
+      console.log('⏳ OCR indisponible → carte en attente de vérification manuelle');
+    }
 
     await user.save();
 
-    console.log("✅ Carte d'handicap vérifiée et sauvegardée");
+    console.log('✅ Carte sauvegardée, statut:', user.handicapStatus);
     console.log('═══════════════════════════════════════');
 
     return {
       success: true,
-      message: "Carte d'handicap vérifiée avec succès",
-      isVerified: true,
-      confidence: analysisResult.confidence,
+      message: user.handicapStatus === 'REJECTED'
+        ? `Carte rejetée: ${analysisResult?.reason}`
+        : 'Carte reçue. En attente de vérification par l\'administrateur.',
+      handicapStatus: user.handicapStatus,
+      confidence: analysisResult?.confidence ?? 0,
       carteHandicape: cardUrl,
-      extractedData: analysisResult.extractedData,
+      extractedData: analysisResult?.extractedData ?? null,
+    };
+  }
+
+  // ══════════════════════════════════════════
+  //  ADMIN: Gestion cartes handicap
+  // ══════════════════════════════════════════
+
+  async getPendingHandicapCards() {
+    const users = await this.UserModel.find({ handicapStatus: 'PENDING' })
+      .select('-password')
+      .sort({ createdAt: -1 });
+
+    return {
+      success: true,
+      total: users.length,
+      cards: users.map((u) => ({
+        userId: u._id,
+        name: u.name,
+        email: u.email,
+        userType: u.userType,
+        carteHandicape: u.carteHandicape,
+        handicapOcrResult: u.handicapOcrResult,
+        handicapData: u.handicapData,
+        createdAt: (u as any).createdAt,
+      })),
+    };
+  }
+
+  async approveHandicapCard(userId: string) {
+    const user = await this.UserModel.findById(userId);
+    if (!user) {
+      throw new NotFoundException('Utilisateur non trouvé');
+    }
+
+    if (user.handicapStatus !== 'PENDING') {
+      throw new BadRequestException('Cette carte n\'est pas en attente de vérification');
+    }
+
+    user.isHandicapVerified = true;
+    user.handicapStatus = 'APPROVED';
+    user.handicapVerifiedAt = new Date();
+    user.handicapReviewedAt = new Date();
+    await user.save();
+
+    console.log('✅ Carte handicap APPROUVÉE pour:', user.name, '(', user.email, ')');
+
+    return {
+      success: true,
+      message: 'Carte d\'handicap approuvée avec succès',
+      userId: user._id,
+    };
+  }
+
+  async rejectHandicapCard(userId: string, reason?: string) {
+    const user = await this.UserModel.findById(userId);
+    if (!user) {
+      throw new NotFoundException('Utilisateur non trouvé');
+    }
+
+    if (user.handicapStatus !== 'PENDING') {
+      throw new BadRequestException('Cette carte n\'est pas en attente de vérification');
+    }
+
+    user.isHandicapVerified = false;
+    user.handicapStatus = 'REJECTED';
+    user.handicapReviewedAt = new Date();
+    user.handicapRejectReason = reason || 'Rejetée par l\'administrateur';
+    await user.save();
+
+    console.log('❌ Carte handicap REJETÉE pour:', user.name, '(', user.email, ') -', reason);
+
+    return {
+      success: true,
+      message: 'Carte d\'handicap rejetée',
+      userId: user._id,
     };
   }
 }

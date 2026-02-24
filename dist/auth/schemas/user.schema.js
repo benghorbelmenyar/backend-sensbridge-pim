@@ -29,6 +29,10 @@ let User = class User extends mongoose_2.Document {
     isHandicapVerified;
     handicapVerifiedAt;
     handicapData;
+    handicapStatus;
+    handicapOcrResult;
+    handicapReviewedAt;
+    handicapRejectReason;
 };
 exports.User = User;
 __decorate([
@@ -99,6 +103,22 @@ __decorate([
     (0, mongoose_1.Prop)({ type: Object }),
     __metadata("design:type", Object)
 ], User.prototype, "handicapData", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ type: String, enum: ['PENDING', 'APPROVED', 'REJECTED'] }),
+    __metadata("design:type", String)
+], User.prototype, "handicapStatus", void 0);
+__decorate([
+    (0, mongoose_1.Prop)({ type: Object }),
+    __metadata("design:type", Object)
+], User.prototype, "handicapOcrResult", void 0);
+__decorate([
+    (0, mongoose_1.Prop)(),
+    __metadata("design:type", Date)
+], User.prototype, "handicapReviewedAt", void 0);
+__decorate([
+    (0, mongoose_1.Prop)(),
+    __metadata("design:type", String)
+], User.prototype, "handicapRejectReason", void 0);
 exports.User = User = __decorate([
     (0, mongoose_1.Schema)({
         timestamps: true,
